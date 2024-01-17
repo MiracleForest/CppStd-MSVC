@@ -73,6 +73,19 @@
 // vcruntime_c11_atomic_support.h header. Any updates should be mirrored.
 // Also: if any macros are added they should be #undefed in both headers
 
+// Controls whether ARM64 ldar/ldapr/stlr should be used
+#ifndef _STD_ATOMIC_USE_ARM64_LDAR_STLR
+#if defined(_M_ARM64) || defined(_M_ARM64EC)
+#if defined(_HAS_ARM64_LOAD_ACQUIRE) && _HAS_ARM64_LOAD_ACQUIRE == 1 // TRANSITION, VS 2022 17.7 Preview 1
+#define _STD_ATOMIC_USE_ARM64_LDAR_STLR 1
+#else // ^^^ updated intrin0.inl.h is available / workaround vvv
+#define _STD_ATOMIC_USE_ARM64_LDAR_STLR 0
+#endif // ^^^ workaround ^^^
+#else // ^^^ ARM64/ARM64EC / Other architectures vvv
+#define _STD_ATOMIC_USE_ARM64_LDAR_STLR 0
+#endif // defined(_M_ARM64) || defined(_M_ARM64EC)
+#endif // _STD_ATOMIC_USE_ARM64_LDAR_STLR
+
 enum {
     _Atomic_memory_order_relaxed,
     _Atomic_memory_order_consume,
@@ -94,6 +107,16 @@ enum {
 #endif // _DEBUG
 #endif // _INVALID_MEMORY_ORDER
 
+#if defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#define _Memory_barrier()             __dmb(0xB) // inner shared data memory barrier
+#define _Compiler_or_memory_barrier() _Memory_barrier()
+#elif defined(_M_IX86) || defined(_M_X64)
+// x86/x64 hardware only emits memory barriers inside _Interlocked intrinsics
+#define _Compiler_or_memory_barrier() _Compiler_barrier()
+#else // ^^^ x86/x64 / unsupported hardware vvv
+#error Unsupported hardware
+#endif // hardware
+
 inline void _Check_memory_order(const unsigned int _Order) {
     if (_Order > _Atomic_memory_order_seq_cst) {
         _INVALID_MEMORY_ORDER;
@@ -106,15 +129,9 @@ inline void _Check_memory_order(const unsigned int _Order) {
     _Pragma("warning(push)") _Pragma("warning(disable : 4996)") /* was declared deprecated */ \
         _ReadWriteBarrier() _Pragma("warning(pop)")
 
-#if defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
-#define _Memory_barrier()             __dmb(0xB) // inner shared data memory barrier
-#define _Compiler_or_memory_barrier() _Memory_barrier()
-#elif defined(_M_IX86) || defined(_M_X64)
-// x86/x64 hardware only emits memory barriers inside _Interlocked intrinsics
-#define _Compiler_or_memory_barrier() _Compiler_barrier()
-#else // ^^^ x86/x64 / unsupported hardware vvv
-#error Unsupported hardware
-#endif // hardware
+// note: these macros are _not_ always safe to use with a trailing semicolon,
+// we avoid wrapping them in do {} while (0) because MSVC generates code for such loops
+// in debug mode.
 
 #if defined(_M_IX86) || (defined(_M_X64) && !defined(_M_ARM64EC))
 #define _ATOMIC_CHOOSE_INTRINSIC(_Order, _Result, _Intrinsic, ...) \
@@ -143,32 +160,68 @@ inline void _Check_memory_order(const unsigned int _Order) {
     }
 #endif // hardware
 
-// note: these macros are _not_ always safe to use with a trailing semicolon,
-// we avoid wrapping them in do {} while (0) because MSVC generates code for such loops
-// in debug mode.
-#define _ATOMIC_LOAD_VERIFY_MEMORY_ORDER(_Order_var) \
-    switch (_Order_var) {                            \
-    case _Atomic_memory_order_relaxed:               \
-        break;                                       \
-    case _Atomic_memory_order_consume:               \
-    case _Atomic_memory_order_acquire:               \
-    case _Atomic_memory_order_seq_cst:               \
-        _Compiler_or_memory_barrier();               \
-        break;                                       \
-    case _Atomic_memory_order_release:               \
-    case _Atomic_memory_order_acq_rel:               \
-    default:                                         \
-        _INVALID_MEMORY_ORDER;                       \
-        break;                                       \
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+
+#define __LOAD_ACQUIRE_ARM64(_Width, _Ptr) \
+    __load_acquire##_Width((const volatile unsigned __int##_Width*)(_Ptr))
+
+#define _ATOMIC_LOAD_ARM64(_Result, _Width, _Ptr, _Order_var) \
+    switch (_Order_var) {                                     \
+    case _Atomic_memory_order_relaxed:                        \
+        _Result = __iso_volatile_load##_Width(_Ptr);          \
+        break;                                                \
+    case _Atomic_memory_order_consume:                        \
+    case _Atomic_memory_order_acquire:                        \
+    case _Atomic_memory_order_seq_cst:                        \
+        _Result = __LOAD_ACQUIRE_ARM64(_Width, _Ptr);         \
+        _Compiler_barrier();                                  \
+        break;                                                \
+    case _Atomic_memory_order_release:                        \
+    case _Atomic_memory_order_acq_rel:                        \
+    default:                                                  \
+        _Result = __iso_volatile_load##_Width(_Ptr);          \
+        _INVALID_MEMORY_ORDER;                                \
+        break;                                                \
     }
+
+#endif // _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+
+#define _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED(_Order_var) \
+    switch (_Order_var) {                               \
+    case _Atomic_memory_order_relaxed:                  \
+        break;                                          \
+    case _Atomic_memory_order_consume:                  \
+    case _Atomic_memory_order_acquire:                  \
+    case _Atomic_memory_order_seq_cst:                  \
+        _Compiler_or_memory_barrier();                  \
+        break;                                          \
+    case _Atomic_memory_order_release:                  \
+    case _Atomic_memory_order_acq_rel:                  \
+    default:                                            \
+        _INVALID_MEMORY_ORDER;                          \
+        break;                                          \
+    }
+
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+
+#define __STORE_RELEASE(_Width, _Ptr, _Desired) \
+    _Compiler_barrier();                        \
+    __stlr##_Width((volatile unsigned __int##_Width*)(_Ptr), (_Desired));
+
+#else // ^^^ _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1 ^^^ / vvv _STD_ATOMIC_USE_ARM64_LDAR_STLR == 0 vvv
+
+#define __STORE_RELEASE(_Width, _Ptr, _Desired) \
+    _Compiler_or_memory_barrier();              \
+    __iso_volatile_store##_Width((_Ptr), (_Desired));
+
+#endif // ^^^ _STD_ATOMIC_USE_ARM64_LDAR_STLR == 0 ^^^
 
 #define _ATOMIC_STORE_PREFIX(_Width, _Ptr, _Desired)      \
     case _Atomic_memory_order_relaxed:                    \
         __iso_volatile_store##_Width((_Ptr), (_Desired)); \
         return;                                           \
     case _Atomic_memory_order_release:                    \
-        _Compiler_or_memory_barrier();                    \
-        __iso_volatile_store##_Width((_Ptr), (_Desired)); \
+        __STORE_RELEASE(_Width, _Ptr, _Desired)           \
         return;                                           \
     default:                                              \
     case _Atomic_memory_order_consume:                    \
@@ -177,34 +230,53 @@ inline void _Check_memory_order(const unsigned int _Order) {
         _INVALID_MEMORY_ORDER;                            \
         /* [[fallthrough]]; */
 
-
 #define _ATOMIC_STORE_SEQ_CST_ARM(_Width, _Ptr, _Desired) \
     _Memory_barrier();                                    \
     __iso_volatile_store##_Width((_Ptr), (_Desired));     \
     _Memory_barrier();
+
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+#define _ATOMIC_STORE_SEQ_CST_ARM64(_Width, _Ptr, _Desired)                               \
+    _Compiler_barrier();                                                                  \
+    __stlr##_Width((volatile unsigned __int##_Width*)(_Ptr), (_Desired)); \
+    _Memory_barrier();
+#else
+#define _ATOMIC_STORE_SEQ_CST_ARM64 _ATOMIC_STORE_SEQ_CST_ARM
+#endif
+
 #define _ATOMIC_STORE_SEQ_CST_X86_X64(_Width, _Ptr, _Desired) (void) _InterlockedExchange##_Width((_Ptr), (_Desired));
 #define _ATOMIC_STORE_32_SEQ_CST_X86_X64(_Ptr, _Desired) \
-    (void) _InterlockedExchange((volatile long*) (_Ptr), (long) (_Desired));
+    (void) _InterlockedExchange((volatile long*)(_Ptr), (long)(_Desired));
 
 #define _ATOMIC_STORE_64_SEQ_CST_IX86(_Ptr, _Desired) \
     _Compiler_barrier();                              \
     __iso_volatile_store64((_Ptr), (_Desired));       \
     _Atomic_thread_fence(_Atomic_memory_order_seq_cst);
 
-#if defined(_M_ARM) || defined(_M_ARM64) || defined(_M_ARM64EC)
+#if defined(_M_ARM)
 #define _ATOMIC_STORE_SEQ_CST(_Width, _Ptr, _Desired) _ATOMIC_STORE_SEQ_CST_ARM(_Width, (_Ptr), (_Desired))
 #define _ATOMIC_STORE_32_SEQ_CST(_Ptr, _Desired)      _ATOMIC_STORE_SEQ_CST_ARM(32, (_Ptr), (_Desired))
 #define _ATOMIC_STORE_64_SEQ_CST(_Ptr, _Desired)      _ATOMIC_STORE_SEQ_CST_ARM(64, (_Ptr), (_Desired))
-#else // ^^^ ARM32/ARM64/ARM64EC hardware / x86/x64 hardware vvv
+#elif defined(_M_ARM64) || defined(_M_ARM64EC) // ^^^ ARM32 / ARM64/ARM64EC vvv
+#define _ATOMIC_STORE_SEQ_CST(_Width, _Ptr, _Desired) _ATOMIC_STORE_SEQ_CST_ARM64(_Width, (_Ptr), (_Desired))
+#define _ATOMIC_STORE_32_SEQ_CST(_Ptr, _Desired)      _ATOMIC_STORE_SEQ_CST_ARM64(32, (_Ptr), (_Desired))
+#define _ATOMIC_STORE_64_SEQ_CST(_Ptr, _Desired)      _ATOMIC_STORE_SEQ_CST_ARM64(64, (_Ptr), (_Desired))
+#elif defined(_M_IX86) || defined(_M_X64) // ^^^ ARM64/ARM64EC / x86/x64 vvv
 #define _ATOMIC_STORE_SEQ_CST(_Width, _Ptr, _Desired) _ATOMIC_STORE_SEQ_CST_X86_X64(_Width, (_Ptr), (_Desired))
 #define _ATOMIC_STORE_32_SEQ_CST(_Ptr, _Desired)      _ATOMIC_STORE_32_SEQ_CST_X86_X64((_Ptr), (_Desired))
 #ifdef _M_IX86
 #define _ATOMIC_STORE_64_SEQ_CST(_Ptr, _Desired) _ATOMIC_STORE_64_SEQ_CST_IX86((_Ptr), (_Desired))
 #else // ^^^ x86 / x64 vvv
 #define _ATOMIC_STORE_64_SEQ_CST(_Ptr, _Desired) _ATOMIC_STORE_SEQ_CST_X86_X64(64, (_Ptr), (_Desired))
-#endif // x86/x64
-#endif // hardware
+#endif // ^^^ x64 ^^^
+#else // ^^^ x86/x64 / Unsupported hardware vvv
+#error "Unsupported hardware"
+#endif
 
+#pragma warning(push)
+#pragma warning(disable : 6001) // "Using uninitialized memory '_Guard'"
+#pragma warning(disable : 28113) // "Accessing a local variable _Guard via an Interlocked function: This is an unusual
+                                 // usage which could be reconsidered."
 inline void _Atomic_thread_fence(const unsigned int _Order) {
     if (_Order == _Atomic_memory_order_relaxed) {
         return;
@@ -218,9 +290,6 @@ inline void _Atomic_thread_fence(const unsigned int _Order) {
         // _mm_mfence could have been used, but it is not supported on older x86 CPUs and is slower on some recent CPUs.
         // The memory fence provided by interlocked operations has some exceptions, but this is fine:
         // std::atomic_thread_fence works with respect to other atomics only; it may not be a full fence for all ops.
-#pragma warning(suppress : 6001) // "Using uninitialized memory '_Guard'"
-#pragma warning(suppress : 28113) // "Accessing a local variable _Guard via an Interlocked function: This is an unusual
-                                  // usage which could be reconsidered."
         (void) _InterlockedIncrement(&_Guard);
         _Compiler_barrier();
     }
@@ -230,7 +299,10 @@ inline void _Atomic_thread_fence(const unsigned int _Order) {
 #error Unsupported hardware
 #endif // unsupported hardware
 }
-#if 1 // TRANSITION, ABI, GH-1151
+#pragma warning(pop)
+
+// End of code shared with STL <atomic>
+
 inline void _Atomic_lock_acquire(volatile long* _Spinlock) {
 #if defined(_M_IX86) || (defined(_M_X64) && !defined(_M_ARM64EC))
     // Algorithm from Intel(R) 64 and IA-32 Architectures Optimization Reference Manual, May 2020
@@ -268,7 +340,6 @@ inline void _Atomic_lock_release(volatile long* _Spinlock) {
 #error Unsupported hardware
 #endif
 }
-#endif // TRANSITION, ABI, GH-1151
 // End of code shared with vcruntime
 
 inline void _Atomic_signal_fence(int _Order) {
@@ -317,29 +388,66 @@ inline void _Atomic_store64(volatile long long* _Ptr, long long _Desired, int _O
     }
 }
 
+inline void _Atomic_storef(volatile float* _Ptr, float _Desired, int _Order) {
+    _Atomic_store32((volatile int*)_Ptr, *(int*)&_Desired, _Order);
+}
+
+inline void _Atomic_stored(volatile double* _Ptr, double _Desired, int _Order) {
+    _Atomic_store64((volatile long long*)_Ptr, *(long long*)&_Desired, _Order);
+}
+
 inline char _Atomic_load8(const volatile char* _Ptr, int _Order) {
-    char _As_bytes = __iso_volatile_load8(_Ptr);
-    _ATOMIC_LOAD_VERIFY_MEMORY_ORDER(_Order);
+    char _As_bytes;
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+    _ATOMIC_LOAD_ARM64(_As_bytes, 8, _Ptr, _Order)
+#else
+    _As_bytes = __iso_volatile_load8(_Ptr);
+    _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED(_Order)
+#endif
     return _As_bytes;
 }
 inline short _Atomic_load16(const volatile short* _Ptr, int _Order) {
-    short _As_bytes = __iso_volatile_load16(_Ptr);
-    _ATOMIC_LOAD_VERIFY_MEMORY_ORDER(_Order);
+    short _As_bytes;
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+    _ATOMIC_LOAD_ARM64(_As_bytes, 16, _Ptr, _Order)
+#else
+    _As_bytes = __iso_volatile_load16(_Ptr);
+    _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED(_Order)
+#endif
     return _As_bytes;
 }
 inline int _Atomic_load32(const volatile int* _Ptr, int _Order) {
-    int _As_bytes = __iso_volatile_load32(_Ptr);
-    _ATOMIC_LOAD_VERIFY_MEMORY_ORDER(_Order);
+    int _As_bytes;
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+    _ATOMIC_LOAD_ARM64(_As_bytes, 32, _Ptr, _Order)
+#else
+    _As_bytes = __iso_volatile_load32(_Ptr);
+    _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED(_Order)
+#endif
     return _As_bytes;
 }
 inline long long _Atomic_load64(const volatile long long* _Ptr, int _Order) {
+    long long _As_bytes;
+#if _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
+    _ATOMIC_LOAD_ARM64(_As_bytes, 64, _Ptr, _Order)
+#else // ^^^ _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1 / _STD_ATOMIC_USE_ARM64_LDAR_STLR != 1 vvv
+
 #ifdef _M_ARM
-    long long _As_bytes = __ldrexd(_Ptr);
+    _As_bytes = __ldrexd(_Ptr);
 #else
-    long long _As_bytes = __iso_volatile_load64(_Ptr);
+    _As_bytes = __iso_volatile_load64(_Ptr);
 #endif
-    _ATOMIC_LOAD_VERIFY_MEMORY_ORDER(_Order);
+    _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED(_Order);
+#endif // _STD_ATOMIC_USE_ARM64_LDAR_STLR == 1
     return _As_bytes;
+}
+inline float _Atomic_loadf(const volatile float* _Ptr, int _Order) {
+    int _As_bytes = _Atomic_load32((const volatile int*)_Ptr, _Order);
+    return *(float*)&_As_bytes;
+}
+inline double _Atomic_loadd(const volatile double* _Ptr, int _Order) {
+    long long _As_bytes = _Atomic_load64((const volatile long long*)_Ptr, _Order);
+    return *(double*)&_As_bytes;
 }
 
 inline _Bool _Atomic_compare_exchange_strong8(volatile char* _Ptr, char* _Expected, char _Desired, int _Order) {
@@ -373,7 +481,6 @@ inline _Bool _Atomic_compare_exchange_strong32(volatile int* _Ptr, int* _Expecte
     *_Expected = _Prev_bytes;
     return 0;
 }
-
 inline _Bool _Atomic_compare_exchange_strong64(
     volatile long long* _Ptr, long long* _Expected, long long _Desired, int _Order) {
     long long _Prev_bytes;
@@ -384,6 +491,12 @@ inline _Bool _Atomic_compare_exchange_strong64(
     }
     *_Expected = _Prev_bytes;
     return 0;
+}
+inline _Bool _Atomic_compare_exchange_strongf(volatile float* _Ptr, float* _Expected, float _Desired, int _Order) {
+    return _Atomic_compare_exchange_strong32((volatile int*)_Ptr, (int*)_Expected, *(int*)&_Desired, _Order);
+}
+inline _Bool _Atomic_compare_exchange_strongd(volatile double* _Ptr, double* _Expected, double _Desired, int _Order) {
+    return _Atomic_compare_exchange_strong64((volatile long long*)_Ptr, (long long*)_Expected, *(long long*)&_Desired, _Order);
 }
 
 inline char _Atomic_exchange8(volatile char* _Ptr, int _Desired, int _Order) {
@@ -413,6 +526,14 @@ inline long long _Atomic_exchange64(volatile long long* _Ptr, long long _Desired
     return _As_bytes;
 #endif // _M_IX86
 }
+inline float _Atomic_exchangef(volatile float* _Ptr, float _Desired, int _Order) {
+    long _As_bytes = _Atomic_exchange32((volatile int*)_Ptr, *(int*)&_Desired, _Order);
+    return *(float*) &_As_bytes;
+}
+inline double _Atomic_exchanged(volatile double* _Ptr, double _Desired, int _Order) {
+    long long _As_bytes = _Atomic_exchange64((volatile long long*)_Ptr, *(long long*)&_Desired, _Order);
+    return *(double*)&_As_bytes;
+}
 
 inline char _Atomic_fetch_add8(volatile char* _Ptr, int _Val, int _Order) {
     char _Result;
@@ -440,6 +561,18 @@ inline long long _Atomic_fetch_add64(volatile long long* _Ptr, long long _Val, i
     _ATOMIC_CHOOSE_INTRINSIC(_Order, _Result, _InterlockedExchangeAdd64, _Ptr, _Val);
     return _Result;
 #endif // _M_IX86
+}
+inline float _Atomic_fetch_addf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_relaxed);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result + _Val, _Order)) {
+    }
+    return _Result;
+}
+inline double _Atomic_fetch_addd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_relaxed);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result + _Val, _Order)) {
+    }
+    return _Result;
 }
 
 inline char _Atomic_add_fetch8(volatile char* _Ptr, int _Val, int _Order) {
@@ -469,6 +602,18 @@ inline long long _Atomic_add_fetch64(volatile long long* _Ptr, long long _Val, i
     return _Result + _Val;
 #endif
 }
+inline float _Atomic_add_fetchf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result + _Val, _Order)) {
+    }
+    return _Result + _Val;
+}
+inline double _Atomic_add_fetchd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result + _Val, _Order)) {
+    }
+    return _Result + _Val;
+}
 
 inline char _Atomic_fetch_sub8(volatile char* _Ptr, int _Val, int _Order) {
     char _Result;
@@ -497,6 +642,18 @@ inline long long _Atomic_fetch_sub64(volatile long long* _Ptr, long long _Val, i
     return _Result;
 #endif // _M_IX86
 }
+inline float _Atomic_fetch_subf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_relaxed);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result - _Val, _Order)) {
+    }
+    return _Result;
+}
+inline double _Atomic_fetch_subd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_relaxed);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result - _Val, _Order)) {
+    }
+    return _Result;
+}
 
 inline char _Atomic_sub_fetch8(volatile char* _Ptr, int _Val, int _Order) {
     char _Result;
@@ -524,6 +681,18 @@ inline long long _Atomic_sub_fetch64(volatile long long* _Ptr, long long _Val, i
     _ATOMIC_CHOOSE_INTRINSIC(_Order, _Result, _InterlockedExchangeAdd64, _Ptr, -_Val);
     return _Result - _Val;
 #endif
+}
+inline float _Atomic_sub_fetchf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result - _Val, _Order)) {
+    }
+    return _Result - _Val;
+}
+inline double _Atomic_sub_fetchd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result - _Val, _Order)) {
+    }
+    return _Result - _Val;
 }
 
 inline char _Atomic_fetch_and8(volatile char* _Ptr, int _Val, int _Order) {
@@ -718,6 +887,18 @@ inline long long _Atomic_mult_fetch64(volatile long long* _Ptr, long long _Val, 
     }
     return _Result * _Val;
 }
+inline float _Atomic_mult_fetchf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result * _Val, _Order)) {
+    }
+    return _Result * _Val;
+}
+inline double _Atomic_mult_fetchd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result * _Val, _Order)) {
+    }
+    return _Result * _Val;
+}
 
 inline unsigned char _Atomic_div_fetch8(volatile unsigned char* _Ptr, unsigned int _Val, int _Order) {
     unsigned char _Result = (unsigned char) _Atomic_load8((volatile char*) _Ptr, _Atomic_memory_order_seq_cst);
@@ -744,6 +925,18 @@ inline unsigned long long _Atomic_div_fetch64(volatile unsigned long long* _Ptr,
         (unsigned long long) _Atomic_load64((volatile long long*) _Ptr, _Atomic_memory_order_seq_cst);
     while (!_Atomic_compare_exchange_strong64(
         (volatile long long*) _Ptr, (long long*) &_Result, (long long) (_Result / _Val), _Order)) {
+    }
+    return _Result / _Val;
+}
+inline float _Atomic_div_fetchf(volatile float* _Ptr, float _Val, int _Order) {
+    float _Result = _Atomic_loadf(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongf(_Ptr, &_Result, _Result / _Val, _Order)) {
+    }
+    return _Result / _Val;
+}
+inline double _Atomic_div_fetchd(volatile double* _Ptr, double _Val, int _Order) {
+    double _Result = _Atomic_loadd(_Ptr, _Atomic_memory_order_seq_cst);
+    while (!_Atomic_compare_exchange_strongd(_Ptr, &_Result, _Result / _Val, _Order)) {
     }
     return _Result / _Val;
 }
@@ -912,7 +1105,7 @@ inline _Bool _Atomic_lock_and_compare_exchange_strong(
 }
 
 #undef _ATOMIC_CHOOSE_INTRINSIC
-#undef _ATOMIC_LOAD_VERIFY_MEMORY_ORDER
+#undef _ATOMIC_POST_LOAD_BARRIER_AS_NEEDED
 #undef _ATOMIC_STORE_PREFIX
 #undef _ATOMIC_STORE_SEQ_CST_ARM
 #undef _ATOMIC_STORE_SEQ_CST_X86_X64
@@ -922,6 +1115,11 @@ inline _Bool _Atomic_lock_and_compare_exchange_strong(
 #undef _ATOMIC_STORE_64_SEQ_CST
 #undef _ATOMIC_STORE_64_SEQ_CST_IX86
 #undef _ATOMIC_INVALID_PARAMETER
+#undef _ATOMIC_STORE_SEQ_CST_ARM64
+#undef __LOAD_ACQUIRE_ARM64
+#undef _ATOMIC_LOAD_ARM64
+#undef __STORE_RELEASE
+#undef _STD_ATOMIC_USE_ARM64_LDAR_STLR
 
 #undef _STD_COMPARE_EXCHANGE_128
 #undef _INVALID_MEMORY_ORDER

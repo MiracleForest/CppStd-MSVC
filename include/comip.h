@@ -99,12 +99,13 @@ public:
     }
 
     explicit _com_ptr_t(_com_ptr_t* p)
-        : m_pInterface(p)
+        : m_pInterface(nullptr)
     {
         if (p == nullptr) {
             _com_issue_error(E_POINTER);
         }
         else {
+            m_pInterface = p->m_pInterface;
             AddRef();
         }
     }

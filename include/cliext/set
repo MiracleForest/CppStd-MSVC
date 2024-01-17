@@ -800,7 +800,7 @@ public:
 		}
 
 	// mutators
-	iterator insert(key_type _Val)
+	iterator insert(key_type _Val) new
 		{	// insert node with value _Val, return iterator
 		_Pairnb _Ans = insert_node(_Val);
 

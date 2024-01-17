@@ -266,7 +266,7 @@ Done:
     return TRUE;
 }
 
-
+_Acquires_lock_(DloadSrwLock)
 DLOAD_INLINE
 VOID
 DloadLock (
@@ -308,6 +308,7 @@ Return Value:
     return;
 }
 
+_Releases_lock_(DloadSrwLock)
 DLOAD_INLINE
 VOID
 DloadUnlock (

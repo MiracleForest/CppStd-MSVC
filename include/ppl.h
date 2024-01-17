@@ -2106,7 +2106,7 @@ private:
     }
 
     // Constant indicating sub-tree completion
-    static const long _Tree_Complete = 2;
+    static constexpr long _Tree_Complete = 2;
 
     // Read in the loop
     _Range<_Index_type> * volatile               _M_pHelper_range;
@@ -2788,7 +2788,7 @@ class _Parallel_for_each_helper
 {
 public:
     typedef typename ::std::iterator_traits<_Forward_iterator>::value_type _Value_type;
-    static const unsigned int _Size = _Chunk_size;
+    static constexpr unsigned int _Size = _Chunk_size;
 
     _Parallel_for_each_helper(_Forward_iterator& _First, const _Forward_iterator& _Last, const _Function& _Func) :
         _M_function(_Func), _M_len(0)
@@ -3493,7 +3493,8 @@ struct _Parallel_reduce_forward_executor_helper
 template <typename _Forward_iterator, typename _Function>
 void _Parallel_reduce_forward_executor(_Forward_iterator _First, _Forward_iterator _Last, const _Function& _Func, task_group& _Task_group)
 {
-    const static int _Internal_worker_number = 1024, _Default_chunk_size = 512;
+    static constexpr int _Internal_worker_number = 1024;
+    static constexpr int _Default_chunk_size = 512;
     typedef _Parallel_reduce_fixed_worker<_Forward_iterator, _Function> _Worker_class;
 
     structured_task_group _Worker_group;
@@ -3613,7 +3614,7 @@ template <typename _Forward_iterator, typename _Iterator_kind>
 class _Iterator_helper
 {
 public:
-    static const size_t _Size = 1024;
+    static constexpr size_t _Size = 1024;
     typedef typename ::std::iterator_traits<_Forward_iterator>::value_type value_type;
 
     _Iterator_helper()
@@ -3663,7 +3664,7 @@ template <typename _Random_iterator>
 class _Iterator_helper<_Random_iterator, ::std::random_access_iterator_tag>
 {
 public:
-    static const size_t _Size = 1024;
+    static constexpr size_t _Size = 1024;
     typedef typename ::std::iterator_traits<_Random_iterator>::value_type value_type;
 
     _Iterator_helper()
@@ -5466,7 +5467,7 @@ inline void parallel_buffered_sort(const _Allocator& _Alloc, const _Random_itera
     {
         return ::std::sort(_Begin, _End, _Func);
     }
-    const static size_t _CORE_NUM_MASK = 0x55555555;
+    static constexpr size_t _CORE_NUM_MASK = 0x55555555;
 
     _AllocatedBufferHolder<_Allocator> _Holder(_Size, _Alloc);
 

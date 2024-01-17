@@ -23,21 +23,25 @@
 * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
 
-#pragma once
+#ifndef _PPLCANCELLATION_TOKEN_H
+#define _PPLCANCELLATION_TOKEN_H
 
 #ifndef _PPLWIN_H
 #error This header must not be included directly
 #endif
 
-#ifndef _PPLCANCELLATION_TOKEN_H
-#define _PPLCANCELLATION_TOKEN_H
+#include <yvals_core.h>
+
+#if _STL_COMPILER_PREPROCESSOR
 
 #include <pplinterface.h>
 #include <mutex>
 #include <condition_variable>
 
-#pragma pack(push,_CRT_PACKING)
-// All header files are required to be protected from the macro new
+#pragma pack(push, _CRT_PACKING)
+#pragma warning(push, _STL_WARNING_LEVEL)
+#pragma warning(disable : _STL_DISABLED_WARNINGS)
+_STL_DISABLE_CLANG_WARNINGS
 #pragma push_macro("new")
 #undef new
 
@@ -109,10 +113,10 @@ namespace details
     {
     private:
 
-        static const long _STATE_CLEAR = 0;
-        static const long _STATE_DEFER_DELETE = 1;
-        static const long _STATE_SYNCHRONIZE = 2;
-        static const long _STATE_CALLED = 3;
+        static constexpr long _STATE_CLEAR = 0;
+        static constexpr long _STATE_DEFER_DELETE = 1;
+        static constexpr long _STATE_SYNCHRONIZE = 2;
+        static constexpr long _STATE_CALLED = 3;
 
     public:
 
@@ -523,7 +527,7 @@ class cancellation_token_registration
 {
 public:
 
-    cancellation_token_registration() :
+    cancellation_token_registration() noexcept :
         _M_pRegistration(nullptr)
     {
     }
@@ -533,17 +537,17 @@ public:
         _Clear();
     }
 
-    cancellation_token_registration(const cancellation_token_registration& _Src)
+    cancellation_token_registration(const cancellation_token_registration& _Src) noexcept
     {
         _Assign(_Src._M_pRegistration);
     }
 
-    cancellation_token_registration(cancellation_token_registration&& _Src)
+    cancellation_token_registration(cancellation_token_registration&& _Src) noexcept
     {
         _Move(_Src._M_pRegistration);
     }
 
-    cancellation_token_registration& operator=(const cancellation_token_registration& _Src)
+    cancellation_token_registration& operator=(const cancellation_token_registration& _Src) noexcept
     {
         if (this != &_Src)
         {
@@ -553,7 +557,7 @@ public:
         return *this;
     }
 
-    cancellation_token_registration& operator=(cancellation_token_registration&& _Src)
+    cancellation_token_registration& operator=(cancellation_token_registration&& _Src) noexcept
     {
         if (this != &_Src)
         {
@@ -577,12 +581,12 @@ private:
 
     friend class cancellation_token;
 
-    cancellation_token_registration(_In_ details::_CancellationTokenRegistration *_PRegistration) :
+    cancellation_token_registration(_In_ details::_CancellationTokenRegistration *_PRegistration) noexcept :
         _M_pRegistration(_PRegistration)
     {
     }
 
-    void _Clear()
+    void _Clear() noexcept
     {
         if (_M_pRegistration != nullptr)
         {
@@ -591,7 +595,7 @@ private:
         _M_pRegistration = nullptr;
     }
 
-    void _Assign(_In_ details::_CancellationTokenRegistration *_PRegistration)
+    void _Assign(_In_ details::_CancellationTokenRegistration *_PRegistration) noexcept
     {
         if (_PRegistration != nullptr)
         {
@@ -600,7 +604,7 @@ private:
         _M_pRegistration = _PRegistration;
     }
 
-    void _Move(_In_ details::_CancellationTokenRegistration *&_PRegistration)
+    void _Move(_In_ details::_CancellationTokenRegistration *&_PRegistration) noexcept
     {
         _M_pRegistration = _PRegistration;
         _PRegistration = nullptr;
@@ -637,7 +641,7 @@ public:
         _Assign(_Src._M_Impl);
     }
 
-    cancellation_token(cancellation_token&& _Src)
+    cancellation_token(cancellation_token&& _Src) noexcept
     {
         _Move(_Src._M_Impl);
     }
@@ -652,7 +656,7 @@ public:
         return *this;
     }
 
-    cancellation_token& operator=(cancellation_token&& _Src)
+    cancellation_token& operator=(cancellation_token&& _Src) noexcept
     {
         if (this != &_Src)
         {
@@ -829,7 +833,7 @@ public:
         _Assign(_Src._M_Impl);
     }
 
-    cancellation_token_source(cancellation_token_source&& _Src)
+    cancellation_token_source(cancellation_token_source&& _Src) noexcept
     {
         _Move(_Src._M_Impl);
     }
@@ -844,7 +848,7 @@ public:
         return *this;
     }
 
-    cancellation_token_source& operator=(cancellation_token_source&& _Src)
+    cancellation_token_source& operator=(cancellation_token_source&& _Src) noexcept
     {
         if (this != &_Src)
         {
@@ -993,6 +997,10 @@ private:
 } // extern "C++"
 
 #pragma pop_macro("new")
+_STL_RESTORE_CLANG_WARNINGS
+#pragma warning(pop)
 #pragma pack(pop)
+
+#endif // _STL_COMPILER_PREPROCESSOR
 
 #endif // _PPLCANCELLATION_TOKEN_H

@@ -13,13 +13,22 @@
 * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
 
-#pragma once
-
 #ifndef _PPLINTERFACE_H
 #define _PPLINTERFACE_H
 
+#include <yvals_core.h>
+
+#if _STL_COMPILER_PREPROCESSOR
+
 #include <memory>
 #include <atomic>
+
+#pragma pack(push, _CRT_PACKING)
+#pragma warning(push, _STL_WARNING_LEVEL)
+#pragma warning(disable : _STL_DISABLED_WARNINGS)
+_STL_DISABLE_CLANG_WARNINGS
+#pragma push_macro("new")
+#undef new
 
 extern "C++" { // attach declarations in namespace Concurrency to the global module, see N4910 [module.unit]/7
 
@@ -271,5 +280,12 @@ _T atomic_add(::std::atomic<_T>& _Target, _T _Value)
 }} // namespace Concurrency::details
 
 } // extern "C++"
+
+#pragma pop_macro("new")
+_STL_RESTORE_CLANG_WARNINGS
+#pragma warning(pop)
+#pragma pack(pop)
+
+#endif // _STL_COMPILER_PREPROCESSOR
 
 #endif // _PPLINTERFACE_H

@@ -12,11 +12,11 @@
 
 #pragma once
 
-#if !defined(_M_IX86) && !defined(_M_X64)
-#error This header is specific to X86 and X64 targets
+#if !defined(_M_IX86) && !defined(_M_X64) && !(defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
+#error This header is specific to X86, X64, ARM64, and ARM64EC targets
 #endif
 
-#if defined(_M_ARM64EC) && !defined(__INTRIN_H_)
+#if (defined(_M_ARM64) || defined(_M_ARM64EC)) && !defined(__INTRIN_H_)
 #error this header should only be included through <intrin.h>
 #endif
 

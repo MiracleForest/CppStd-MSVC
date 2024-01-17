@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _EXECUTION_
 #define _EXECUTION_
 #include <yvals.h>
@@ -33,11 +32,11 @@ _EXTERN_C
 using __std_TP_WORK              = void;
 using __std_TP_CALLBACK_INSTANCE = void;
 using __std_TP_CALLBACK_ENVIRON  = void;
-#else // ^^^ _M_CEE ^^^ // vvv !_M_CEE vvv
+#else // ^^^ defined(_M_CEE) / !defined(_M_CEE) vvv
 struct __std_TP_WORK; // not defined
 struct __std_TP_CALLBACK_INSTANCE; // not defined
 struct __std_TP_CALLBACK_ENVIRON; // not defined
-#endif // _M_CEE
+#endif // ^^^ !defined(_M_CEE) ^^^
 
 using __std_PTP_WORK              = __std_TP_WORK*;
 using __std_PTP_CALLBACK_INSTANCE = __std_TP_CALLBACK_INSTANCE*;
@@ -110,7 +109,8 @@ namespace execution {
         // indicates support by element access functions for weakly parallel forward progress guarantees, and for
         // executing interleaved on the same thread, and requests termination on exceptions
         //
-        // (at this time, equivalent to sequenced_policy except for the for_each family)
+        // (at this time, equivalent to sequenced_policy except for for_each(_n), destroy(_n),
+        // uninitialized_default_construct(_n), and uninitialized_value_construct(_n))
     public:
         using _Standard_execution_policy   = int;
         static constexpr bool _Parallelize = false;
@@ -276,7 +276,7 @@ struct _Parallelism_allocate_traits {
 
         return _Result;
     }
-#endif // __cpp_aligned_new
+#endif // defined(__cpp_aligned_new)
 };
 
 template <class _Ty = void>
@@ -303,10 +303,12 @@ struct _Parallelism_allocator {
         return true;
     }
 
+#if !_HAS_CXX20
     template <class _Other>
     bool operator!=(const _Parallelism_allocator<_Other>&) const noexcept {
         return false;
     }
+#endif // !_HAS_CXX20
 };
 
 template <class _Ty>
@@ -472,7 +474,7 @@ struct _Parallel_choose_max_chunk {
     }
 };
 
-_EXPORT_STD /* TRANSITION, VSO-1592329 */ template <class _Ty>
+template <class _Ty>
 struct alignas(_Ty) alignas(size_t) alignas(_Atomic_counter_t) _Circular_buffer { // work stealing deque extent type
     static_assert(is_trivial_v<_Ty>, "Work stealing deques work only with trivial operations");
 
@@ -777,8 +779,8 @@ struct _Static_partition_team { // common data for all static partitioned ops
     _Diff _Unchunked_items;
 
     _Static_partition_team(const _Diff _Count_, const size_t _Chunks_)
-        : _Consumed_chunks{0}, _Chunks{_Chunks_}, _Count{_Count_}, _Chunk_size{static_cast<_Diff>(
-                                                                       _Count_ / static_cast<_Diff>(_Chunks_))},
+        : _Consumed_chunks{0}, _Chunks{_Chunks_}, _Count{_Count_},
+          _Chunk_size{static_cast<_Diff>(_Count_ / static_cast<_Diff>(_Chunks_))},
           _Unchunked_items{static_cast<_Diff>(_Count_ % static_cast<_Diff>(_Chunks_))} {
         // Calculate common data for statically partitioning iterator ranges.
         // pre: _Count_ >= _Chunks_ && _Chunks_ >= 1
@@ -1346,7 +1348,7 @@ _NODISCARD _FwdIt find(_ExPo&& _Exec, _FwdIt _First, const _FwdIt _Last, const _
     _Adl_verify_range(_First, _Last);
     _Seek_wrapped(_First,
         _Find_parallel_unchecked(_STD forward<_ExPo>(_Exec), _Get_unwrapped(_First), _Get_unwrapped(_Last),
-            [&](const _UFwdIt _LFirst, const _UFwdIt _LLast) { return _Find_unchecked(_LFirst, _LLast, _Val); }));
+            [&](const _UFwdIt _LFirst, const _UFwdIt _LLast) { return _STD _Find_unchecked(_LFirst, _LLast, _Val); }));
     return _First;
 }
 
@@ -1487,8 +1489,8 @@ struct _Static_partitioned_find_end_backward3 {
 
     _Static_partitioned_find_end_backward3(const size_t _Hw_threads, const _Iter_diff_t<_BidIt1> _Count,
         const _BidIt1 _Last1, const _FwdIt2 _First2, const _FwdIt2 _Last2, const _Pr _Pred_)
-        : _Team{_Count, _Get_chunked_work_chunk_count(_Hw_threads, _Count)}, _Basis{},
-          _Results(_Last1), _Range2{_First2, _Last2}, _Pred{_Pred_} {}
+        : _Team{_Count, _Get_chunked_work_chunk_count(_Hw_threads, _Count)}, _Basis{}, _Results(_Last1),
+          _Range2{_First2, _Last2}, _Pred{_Pred_} {}
 
     _Cancellation_status _Process_chunk() {
         if (_Results._Complete()) {
@@ -1650,6 +1652,7 @@ struct _Static_partitioned_adjacent_find3 {
 _EXPORT_STD template <class _ExPo, class _FwdIt, class _Pr, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 _NODISCARD _FwdIt adjacent_find(_ExPo&&, _FwdIt _First, _FwdIt _Last, _Pr _Pred) noexcept /* terminates */ {
     // find first satisfying _Pred with successor
+    _REQUIRE_PARALLEL_ITERATOR(_FwdIt);
     _Adl_verify_range(_First, _Last);
     auto _UFirst      = _Get_unwrapped(_First);
     const auto _ULast = _Get_unwrapped(_Last);
@@ -1864,9 +1867,6 @@ struct _Static_partitioned_mismatch3 {
     }
 };
 
-#pragma warning(push)
-#pragma warning(disable : 4868) // compiler may not enforce left-to-right evaluation order
-                                // in braced initializer list (/Wall)
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Pr,
     _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 _NODISCARD pair<_FwdIt1, _FwdIt2> mismatch(
@@ -1908,7 +1908,6 @@ _NODISCARD pair<_FwdIt1, _FwdIt2> mismatch(
     _Seek_wrapped(_First1, _Result.first);
     return {_First1, _First2};
 }
-#pragma warning(pop)
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Pr,
     _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
@@ -1958,8 +1957,8 @@ struct _Static_partitioned_equal2 {
     _Cancellation_token _Cancel_token;
 
     _Static_partitioned_equal2(const size_t _Hw_threads, const _Diff _Count, _Pr _Pred_, const _FwdIt1&, const _FwdIt2&)
-        : _Team{_Count, _Get_chunked_work_chunk_count(_Hw_threads, _Count)}, _Basis1{}, _Basis2{},
-          _Pred(_Pred_), _Cancel_token{} {}
+        : _Team{_Count, _Get_chunked_work_chunk_count(_Hw_threads, _Count)}, _Basis1{}, _Basis2{}, _Pred(_Pred_),
+          _Cancel_token{} {}
 
     _Cancellation_status _Process_chunk() {
         if (_Cancel_token._Is_canceled()) {
@@ -2244,6 +2243,7 @@ _EXPORT_STD template <class _ExPo, class _FwdIt, class _Diff, class _Ty, class _
 _NODISCARD _FwdIt search_n(_ExPo&&, const _FwdIt _First, _FwdIt _Last, const _Diff _Count_raw, const _Ty& _Val,
     _Pr _Pred) noexcept /* terminates */ {
     // find first _Count * _Val satisfying _Pred
+    _REQUIRE_PARALLEL_ITERATOR(_FwdIt);
     const _Algorithm_int_t<_Diff> _Count = _Count_raw;
     if (_Count <= 0) {
         _Last = _First;
@@ -2392,9 +2392,6 @@ struct _Static_partitioned_binary_transform2 {
     }
 };
 
-#pragma warning(push)
-#pragma warning(disable : 4868) // compiler may not enforce left-to-right evaluation order
-                                // in braced initializer list (/Wall)
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _FwdIt3, class _Fn,
     _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 _FwdIt3 transform(_ExPo&&, const _FwdIt1 _First1, const _FwdIt1 _Last1, const _FwdIt2 _First2, _FwdIt3 _Dest,
@@ -2439,7 +2436,6 @@ _FwdIt3 transform(_ExPo&&, const _FwdIt1 _First1, const _FwdIt1 _Last1, const _F
         return _Dest;
     }
 }
-#pragma warning(pop)
 
 _EXPORT_STD template <class _ExPo, class _FwdIt, class _Ty, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 void replace(_ExPo&& _Exec, const _FwdIt _First, const _FwdIt _Last, const _Ty& _Oldval, const _Ty& _Newval) noexcept
@@ -2562,7 +2558,7 @@ struct _Static_partitioned_remove_if2 {
             if (_Results == _Merge_first) { // entire range up to now had no removals, don't bother moving
                 _Results = _Merge_new_end;
             } else {
-                _Results = _Move_unchecked(_Merge_first, _Merge_new_end, _Results);
+                _Results = _STD _Move_unchecked(_Merge_first, _Merge_new_end, _Results);
             }
 
             _Merge_chunk_data._State.store(_Chunk_state::_Done);
@@ -2581,6 +2577,7 @@ _EXPORT_STD template <class _ExPo, class _FwdIt, class _Pr, _Enable_if_execution
 _NODISCARD_REMOVE_ALG _FwdIt remove_if(_ExPo&&, _FwdIt _First, const _FwdIt _Last, _Pr _Pred) noexcept
 /* terminates */ {
     // remove each satisfying _Pred
+    _REQUIRE_CPP17_MUTABLE_ITERATOR(_FwdIt);
     _Adl_verify_range(_First, _Last);
     auto _UFirst      = _Get_unwrapped(_First);
     const auto _ULast = _Get_unwrapped(_Last);
@@ -2719,6 +2716,7 @@ struct _Sort_operation { // context for background threads
 _EXPORT_STD template <class _ExPo, class _RanIt, class _Pr, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 void sort(_ExPo&&, const _RanIt _First, const _RanIt _Last, _Pr _Pred) noexcept /* terminates */ {
     // order [_First, _Last)
+    _REQUIRE_CPP17_MUTABLE_RANDOM_ACCESS_ITERATOR(_RanIt);
     _Adl_verify_range(_First, _Last);
     const auto _UFirst                = _Get_unwrapped(_First);
     const auto _ULast                 = _Get_unwrapped(_Last);
@@ -2810,10 +2808,10 @@ inline size_t _Get_stable_sort_tree_height(const size_t _Count, const size_t _Hw
     const auto _Ideal_chunks           = _Hw_threads * _Oversubscription_multiplier;
     const size_t _Log_ideal_chunks     = _Floor_of_log_2(_Ideal_chunks);
 #ifdef _WIN64
-    const size_t _Max_tree_height      = 62; // to avoid ptrdiff_t overflow
-#else // ^^^ _WIN64 ^^^ // vvv !_WIN64 vvv
-    const size_t _Max_tree_height = 30;
-#endif // _WIN64
+    constexpr size_t _Max_tree_height  = 62; // to avoid ptrdiff_t overflow
+#else // ^^^ defined(_WIN64) / !defined(_WIN64) vvv
+    constexpr size_t _Max_tree_height = 30;
+#endif // ^^^ !defined(_WIN64) ^^^
     const size_t _Clamped_ideal_chunks = (_STD min)(_Max_tree_height, _Log_ideal_chunks);
 
     // similarly, if _Clamped_ideal_chunks is odd, that would break our 2 to even power invariant,
@@ -2976,6 +2974,7 @@ struct _Static_partitioned_stable_sort3 {
 _EXPORT_STD template <class _ExPo, class _BidIt, class _Pr, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 void stable_sort(_ExPo&&, const _BidIt _First, const _BidIt _Last, _Pr _Pred) noexcept /* terminates */ {
     // sort preserving order of equivalents
+    _REQUIRE_CPP17_MUTABLE_BIDIRECTIONAL_ITERATOR(_BidIt);
     _Adl_verify_range(_First, _Last);
     const auto _UFirst = _Get_unwrapped(_First);
     const auto _ULast  = _Get_unwrapped(_Last);
@@ -3343,7 +3342,7 @@ pair<_FwdIt, _Iter_diff_t<_FwdIt>> _Partition_with_count_unchecked(_FwdIt _First
                 }
             } while (!_Pred(*_Last));
 
-            _STD iter_swap(_First, _Last); // out of place, swap and loop
+            swap(*_First, *_Last); // out of place, swap and loop; intentional ADL
             ++_First;
             ++_Trues;
         }
@@ -3364,7 +3363,7 @@ pair<_FwdIt, _Iter_diff_t<_FwdIt>> _Partition_with_count_unchecked(_FwdIt _First
 
         for (_FwdIt _Next = _First; ++_Next != _Last;) {
             if (_Pred(*_Next)) {
-                _STD iter_swap(_First, _Next); // out of place, swap and loop
+                swap(*_First, *_Next); // out of place, swap and loop; intentional ADL
                 ++_First;
                 ++_Trues;
             }
@@ -3384,7 +3383,7 @@ pair<_FwdIt, _Iter_diff_t<_FwdIt>> _Partition_swap_backward(
         while (_First != _Last) {
             --_Last;
             if (_Pred(*_Last)) {
-                _STD iter_swap(_Beginning_of_falses, _Last);
+                swap(*_Beginning_of_falses, *_Last); // intentional ADL
                 ++_Beginning_of_falses;
                 ++_Trues;
                 if (_Beginning_of_falses == _First) {
@@ -3396,7 +3395,7 @@ pair<_FwdIt, _Iter_diff_t<_FwdIt>> _Partition_swap_backward(
     } else {
         for (; _First != _Last; ++_First) {
             if (_Pred(*_First)) {
-                _STD iter_swap(_First, _Beginning_of_falses);
+                swap(*_First, *_Beginning_of_falses); // intentional ADL
                 ++_Beginning_of_falses;
                 ++_Trues;
             }
@@ -3538,6 +3537,7 @@ struct _Static_partitioned_partition2 {
 _EXPORT_STD template <class _ExPo, class _FwdIt, class _Pr, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 _FwdIt partition(_ExPo&&, _FwdIt _First, const _FwdIt _Last, _Pr _Pred) noexcept /* terminates */ {
     // move elements satisfying _Pred to beginning of sequence
+    _REQUIRE_CPP17_MUTABLE_ITERATOR(_FwdIt);
     _Adl_verify_range(_First, _Last);
     const auto _UFirst = _Get_unwrapped(_First);
     const auto _ULast  = _Get_unwrapped(_Last);
@@ -3880,10 +3880,8 @@ _FwdIt3 set_intersection(_ExPo&&, _FwdIt1 _First1, _FwdIt1 _Last1, _FwdIt2 _Firs
     const auto _ULast2 = _Get_unwrapped(_Last2);
     auto _UDest        = _Get_unwrapped_unverified(_Dest);
     using _Diff        = _Common_diff_t<_FwdIt1, _FwdIt2, _FwdIt3>;
-    if constexpr (remove_reference_t<_ExPo>::_Parallelize //
-                  && _Is_ranges_random_iter_v<_FwdIt1> //
-                  && _Is_ranges_random_iter_v<_FwdIt2> //
-                  && _Is_cpp17_random_iter_v<_FwdIt3>) {
+    if constexpr (remove_reference_t<_ExPo>::_Parallelize && _Is_ranges_random_iter_v<_FwdIt1>
+                  && _Is_ranges_random_iter_v<_FwdIt2> && _Is_cpp17_random_iter_v<_FwdIt3>) {
         // only parallelize if desired, and all of the iterators given are random access
         const size_t _Hw_threads = __std_parallel_algorithms_hw_threads();
         if (_Hw_threads > 1) { // parallelize on multiprocessor machines
@@ -3972,10 +3970,8 @@ _FwdIt3 set_difference(_ExPo&&, _FwdIt1 _First1, _FwdIt1 _Last1, _FwdIt2 _First2
     const auto _ULast2 = _Get_unwrapped(_Last2);
     auto _UDest        = _Get_unwrapped_unverified(_Dest);
     using _Diff        = _Common_diff_t<_FwdIt1, _FwdIt2, _FwdIt3>;
-    if constexpr (remove_reference_t<_ExPo>::_Parallelize //
-                  && _Is_ranges_random_iter_v<_FwdIt1> //
-                  && _Is_ranges_random_iter_v<_FwdIt2> //
-                  && _Is_cpp17_random_iter_v<_FwdIt3>) {
+    if constexpr (remove_reference_t<_ExPo>::_Parallelize && _Is_ranges_random_iter_v<_FwdIt1>
+                  && _Is_ranges_random_iter_v<_FwdIt2> && _Is_cpp17_random_iter_v<_FwdIt3>) {
         // only parallelize if desired, and all of the iterators given are random access
         const size_t _Hw_threads = __std_parallel_algorithms_hw_threads();
         if (_Hw_threads > 1) { // parallelize on multiprocessor machines
@@ -4006,7 +4002,7 @@ _Ty _Reduce_move_unchecked(_InIt _First, const _InIt _Last, _Ty _Val, _BinOp _Re
         return _Reduce_plus_arithmetic_ranges(_First, _Last, _Val);
     } else {
         for (; _First != _Last; ++_First) {
-            _Val = _Reduce_op(_STD move(_Val), _STD move(*_First)); // Requirement missing from N4713
+            _Val = _Reduce_op(_STD move(_Val), _STD move(*_First)); // Requirement missing from N4950
         }
 
         return _Val;
@@ -4023,7 +4019,7 @@ _Ty _Reduce_at_least_two(const _FwdIt _First, const _FwdIt _Last, _BinOp _Reduce
         auto _Next = _First;
         _Ty _Val   = _Reduce_op(*_First, *++_Next);
         while (++_Next != _Last) {
-            _Val = _Reduce_op(_STD move(_Val), *_Next); // Requirement missing from N4713
+            _Val = _Reduce_op(_STD move(_Val), *_Next); // Requirement missing from N4950
         }
 
         return _Val;
@@ -4116,8 +4112,8 @@ struct _Static_partitioned_transform_reduce_binary2 { // transform-reduction tas
 
     _Static_partitioned_transform_reduce_binary2(const _Diff _Count, const size_t _Chunks, const _FwdIt1 _First1,
         const _FwdIt2 _First2, _BinOp1 _Reduce_op_, _BinOp2 _Transform_op_)
-        : _Team{_Count, _Chunks}, _Basis1{}, _Basis2{}, _Reduce_op(_Reduce_op_),
-          _Transform_op(_Transform_op_), _Results{_Chunks} {
+        : _Team{_Count, _Chunks}, _Basis1{}, _Basis2{}, _Reduce_op(_Reduce_op_), _Transform_op(_Transform_op_),
+          _Results{_Chunks} {
         _Basis1._Populate(_Team, _First1);
         _Basis2._Populate(_Team, _First2);
     }
@@ -4134,10 +4130,10 @@ struct _Static_partitioned_transform_reduce_binary2 { // transform-reduction tas
                 _This->_Basis2._Get_first(_Key._Chunk_number, _This->_Team._Get_chunk_offset(_Key._Chunk_number));
             auto _Next1 = _Chunk1._First;
             auto _Next2 = _First2;
-            // Requirement missing from N4713:
+            // Requirement missing from N4950:
             _Ty _Val = _Reduce_op(_Transform_op(*_Chunk1._First, *_First2), _Transform_op(*++_Next1, *++_Next2));
             while (++_Next1 != _Chunk1._Last) {
-                // Requirement missing from N4713:
+                // Requirement missing from N4950:
                 _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_Next1, *++_Next2));
             }
 
@@ -4148,7 +4144,7 @@ struct _Static_partitioned_transform_reduce_binary2 { // transform-reduction tas
                 _Next1 = _Chunk1._First;
                 _Next2 = _First2;
                 for (; _Next1 != _Chunk1._Last; ++_Next1, (void) ++_Next2) {
-                    // Requirement missing from N4713:
+                    // Requirement missing from N4950:
                     _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_Next1, *_Next2));
                 }
             }
@@ -4158,9 +4154,6 @@ struct _Static_partitioned_transform_reduce_binary2 { // transform-reduction tas
     }
 };
 
-#pragma warning(push)
-#pragma warning(disable : 4868) // compiler may not enforce left-to-right evaluation order
-                                // in braced initializer list (/Wall)
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Ty, class _BinOp1, class _BinOp2,
     _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
 _NODISCARD _Ty transform_reduce(_ExPo&&, _FwdIt1 _First1, _FwdIt1 _Last1, _FwdIt2 _First2, _Ty _Val, _BinOp1 _Reduce_op,
@@ -4215,7 +4208,6 @@ _NODISCARD _Ty transform_reduce(_ExPo&&, _FwdIt1 _First1, _FwdIt1 _Last1, _FwdIt
         _Get_unwrapped_n(_First2, _Idl_distance<_FwdIt1>(_UFirst1, _ULast1)), _STD move(_Val), _Pass_fn(_Reduce_op),
         _Pass_fn(_Transform_op));
 }
-#pragma warning(pop)
 
 template <class _FwdIt, class _Ty, class _BinOp, class _UnaryOp>
 struct _Static_partitioned_transform_reduce2 { // transformed reduction task scheduled on the system thread pool
@@ -4284,7 +4276,7 @@ _NODISCARD _Ty transform_reduce(_ExPo&&, const _FwdIt _First, const _FwdIt _Last
                     // setup complete, hereafter nothrow or terminate
                     _Work._Submit_for_chunks(_Hw_threads, _Chunks);
                     while (auto _Stolen_key = _Operation._Team._Get_next_key()) {
-                        // keep processing remaining chunks to comply with N4687 [intro.progress]/14
+                        // keep processing remaining chunks to comply with N4950 [intro.progress]/14
                         auto _Chunk = _Operation._Basis._Get_chunk(_Stolen_key);
                         _Val = _STD transform_reduce(_Chunk._First, _Chunk._Last, _STD move(_Val), _Pass_fn(_Reduce_op),
                             _Pass_fn(_Transform_op));
@@ -5048,11 +5040,171 @@ _FwdIt2 adjacent_difference(_ExPo&&, const _FwdIt1 _First, const _FwdIt1 _Last, 
                              _Get_unwrapped_n(_Dest, _Idl_distance<_FwdIt1>(_UFirst, _ULast)), _Pass_fn(_Diff_op)));
     return _Dest;
 }
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+void destroy(_ExPo&& _Exec, const _NoThrowFwdIt _First, const _NoThrowFwdIt _Last) noexcept /* terminates */ {
+    // destroy all elements in [_First, _Last)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _STD _Adl_verify_range(_First, _Last);
+    using _Ty = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+    if constexpr (!is_trivially_destructible_v<_Ty>) {
+        _STD for_each(_STD forward<_ExPo>(_Exec), _First, _Last, [](_Ty& _Obj) { _STD _Destroy_in_place(_Obj); });
+    }
+}
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, class _Diff, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+_NoThrowFwdIt destroy_n(_ExPo&& _Exec, _NoThrowFwdIt _First, const _Diff _Count_raw) noexcept /* terminates */ {
+    // destroy all elements in [_First, _First + _Count)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _Algorithm_int_t<_Diff> _Count = _Count_raw;
+    if (_Count <= 0) {
+        return _First;
+    }
+
+    using _Ty = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+    if constexpr (is_trivially_destructible_v<_Ty>) {
+        _STD advance(_First, _Count);
+        return _First;
+    } else {
+        return _STD for_each_n(
+            _STD forward<_ExPo>(_Exec), _First, _Count, [](_Ty& _Obj) { _STD _Destroy_in_place(_Obj); });
+    }
+}
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+void uninitialized_default_construct(_ExPo&& _Exec, const _NoThrowFwdIt _First, const _NoThrowFwdIt _Last) noexcept
+/* terminates */ {
+    // default-initialize all elements in [_First, _Last)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _STD _Adl_verify_range(_First, _Last);
+    using _Ty = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+    if constexpr (!is_trivially_default_constructible_v<_Ty>) {
+        _STD for_each(
+            _STD forward<_ExPo>(_Exec), _First, _Last, [](_Ty& _Obj) { _STD _Default_construct_in_place(_Obj); });
+    }
+}
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, class _Diff, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+_NoThrowFwdIt uninitialized_default_construct_n(_ExPo&& _Exec, _NoThrowFwdIt _First, const _Diff _Count_raw) noexcept
+/* terminates */ {
+    // default-initialize all elements in [_First, _First + _Count)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _Algorithm_int_t<_Diff> _Count = _Count_raw;
+    if (_Count <= 0) {
+        return _First;
+    }
+
+    using _Ty = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+    if constexpr (is_trivially_default_constructible_v<_Ty>) {
+        _STD advance(_First, _Count);
+        return _First;
+    } else {
+        return _STD for_each_n(
+            _STD forward<_ExPo>(_Exec), _First, _Count, [](_Ty& _Obj) { _STD _Default_construct_in_place(_Obj); });
+    }
+}
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+void uninitialized_value_construct(_ExPo&&, _NoThrowFwdIt _First, _NoThrowFwdIt _Last) noexcept /* terminates */ {
+    // value-initialize all elements in [_First, _Last)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _STD _Adl_verify_range(_First, _Last);
+    auto _UFirst      = _STD _Get_unwrapped(_First);
+    const auto _ULast = _STD _Get_unwrapped(_Last);
+
+    if constexpr (_Use_memset_value_construct_v<decltype(_UFirst)>) {
+        _STD _Zero_range(_UFirst, _ULast);
+    } else if constexpr (remove_reference_t<_ExPo>::_Parallelize) {
+        const size_t _Hw_threads = _CSTD __std_parallel_algorithms_hw_threads();
+        if (_Hw_threads > 1) { // parallelize on multiprocessor machines...
+            auto _Count = _STD distance(_UFirst, _ULast);
+            if (_Count >= 2) { // ... with at least 2 elements
+                _TRY_BEGIN
+                using _Ty     = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+                auto _Ctor_fn = [](_Ty& _Obj) { _STD _Construct_in_place(_Obj); };
+                _Static_partitioned_for_each2<decltype(_UFirst), decltype(_Count), decltype(_Ctor_fn)> _Operation{
+                    _Hw_threads, _Count, _Ctor_fn};
+                _Operation._Basis._Populate(_Operation._Team, _UFirst);
+                _STD _Run_chunked_parallel_work(_Hw_threads, _Operation);
+                return;
+                _CATCH(const _Parallelism_resources_exhausted&)
+                // fall through to serial case below
+                _CATCH_END
+            }
+        }
+
+#pragma loop(ivdep)
+        for (; _UFirst != _ULast; ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+    } else if constexpr (remove_reference_t<_ExPo>::_Ivdep) {
+#pragma loop(ivdep)
+        for (; _UFirst != _ULast; ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+    } else {
+        for (; _UFirst != _ULast; ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+    }
+}
+
+_EXPORT_STD template <class _ExPo, class _NoThrowFwdIt, class _Diff, _Enable_if_execution_policy_t<_ExPo> /* = 0 */>
+_NoThrowFwdIt uninitialized_value_construct_n(_ExPo&&, _NoThrowFwdIt _First, const _Diff _Count_raw) noexcept
+/* terminates */ {
+    // value-initialize all elements in [_First, _First + _Count)
+    _REQUIRE_PARALLEL_LVALUE_ITERATOR(_NoThrowFwdIt);
+    _Algorithm_int_t<_Diff> _Count = _Count_raw;
+
+    if (_Count <= 0) {
+        return _First;
+    }
+
+    auto _UFirst = _STD _Get_unwrapped_n(_First, _Count);
+    if constexpr (_Use_memset_value_construct_v<decltype(_UFirst)>) {
+        _STD _Zero_range(_UFirst, _UFirst + _Count);
+        _STD _Seek_wrapped(_First, _UFirst + _Count);
+    } else if constexpr (remove_reference_t<_ExPo>::_Parallelize) {
+        const size_t _Hw_threads = _CSTD __std_parallel_algorithms_hw_threads();
+        if (_Hw_threads > 1 && _Count >= 2) { // parallelize on multiprocessor machines with at least 2 elements
+            _TRY_BEGIN
+            using _Ty     = remove_reference_t<_Iter_ref_t<_NoThrowFwdIt>>;
+            auto _Ctor_fn = [](_Ty& _Obj) { _STD _Construct_in_place(_Obj); };
+            _Static_partitioned_for_each2<decltype(_UFirst), decltype(_Count), decltype(_Ctor_fn)> _Operation{
+                _Hw_threads, _Count, _Ctor_fn};
+            _STD _Seek_wrapped(_First, _Operation._Basis._Populate(_Operation._Team, _UFirst));
+            _STD _Run_chunked_parallel_work(_Hw_threads, _Operation);
+            return _First;
+            _CATCH(const _Parallelism_resources_exhausted&)
+            // fall through to serial case below
+            _CATCH_END
+        }
+
+#pragma loop(ivdep)
+        for (; _Count > 0; --_Count, (void) ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+        _STD _Seek_wrapped(_First, _UFirst);
+    } else if constexpr (remove_reference_t<_ExPo>::_Ivdep) {
+#pragma loop(ivdep)
+        for (; _Count > 0; --_Count, (void) ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+        _STD _Seek_wrapped(_First, _UFirst);
+    } else {
+        for (; _Count > 0; --_Count, (void) ++_UFirst) {
+            _STD _Construct_in_place(*_UFirst);
+        }
+        _STD _Seek_wrapped(_First, _UFirst);
+    }
+
+    return _First;
+}
 _STD_END
 #pragma pop_macro("new")
 _STL_RESTORE_CLANG_WARNINGS
 #pragma warning(pop)
 #pragma pack(pop)
-#endif // _HAS_CXX17
+#endif // ^^^ _HAS_CXX17 ^^^
 #endif // _STL_COMPILER_PREPROCESSOR
 #endif // _EXECUTION_

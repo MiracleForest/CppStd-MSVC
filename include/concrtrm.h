@@ -108,7 +108,7 @@ namespace Concurrency
 
         /// <summary>
         ///     Tells whether this context has entered the <c>Dispatch</c> method because the previous context asynchronously blocked.
-        ///     This is used only on the UMS scheduling context, and is set to the value <c>0</c> for all other execution contexts.
+        ///     This is set to the value <c>0</c> for all execution contexts.
         /// </summary>
         /// <seealso cref="IExecutionContext::Dispatch Method"/>
         /**/
@@ -209,9 +209,8 @@ namespace Concurrency
     };
 
     /// <summary>
-    ///     An abstraction for a thread of execution. Depending on the <c>SchedulerType</c> policy key of the scheduler you create, the Resource
-    ///     Manager will grant you a thread proxy that is backed by either a regular Win32 thread or a user-mode schedulable (UMS) thread.
-    ///     UMS threads are supported on 64-bit operating systems with version Windows 7 and higher.
+    ///     An abstraction for a thread of execution.
+    ///     The Resource Manager will grant you a thread proxy that is backed by a regular Win32 thread.
     /// </summary>
     /// <remarks>
     ///     Thread proxies are coupled to execution contexts represented by the interface <c>IExecutionContext</c> as a means of dispatching work.
@@ -330,9 +329,7 @@ namespace Concurrency
         /// </summary>
         /// <remarks>
         ///     When called by a thread proxy backed by a regular Windows thread, <c>YieldToSystem</c> behaves exactly like the Windows function
-        ///     <c>SwitchToThread</c>. However, when called from user-mode schedulable (UMS) threads, the <c>SwitchToThread</c> function delegates the task
-        ///     of picking the next thread to run to the user mode scheduler, not the operating system. To achieve the desired effect of switching
-        ///     to a different ready thread in the system, use <c>YieldToSystem</c>.
+        ///     <c>SwitchToThread</c>.
         ///     <para><c>YieldToSystem</c> must be called on the <c>IThreadProxy</c> interface that represents the currently executing thread
         ///     or the results are undefined.</para>
         /// </remarks>
@@ -343,7 +340,6 @@ namespace Concurrency
     /// <summary>
     ///    The type of critical region a context is inside.
     /// </summary>
-    /// <seealso cref="IUMSThreadProxy Structure"/>
     /**/
     enum CriticalRegionType
     {
@@ -369,76 +365,6 @@ namespace Concurrency
         /// </summary>
         /**/
         InsideHyperCriticalRegion
-    };
-
-    /// <summary>
-    ///     An abstraction for a thread of execution. If you want your scheduler to be granted user-mode schedulable (UMS) threads, set the value for the
-    ///     scheduler policy element <c>SchedulerKind</c> to <c>UmsThreadDefault</c>, and implement the <c>IUMSScheduler</c> interface.
-    ///     UMS threads are only supported on 64-bit operating systems with version Windows 7 and higher.
-    /// </summary>
-    /// <seealso cref="IUMSScheduler Structure"/>
-    /// <seealso cref="SchedulerType Enumeration"/>
-    /**/
-    struct IUMSThreadProxy : public IThreadProxy
-    {
-        /// <summary>
-        ///     Called in order to enter a critical region.  When inside a critical region, the scheduler will not observe asynchronous blocking operations
-        ///     that happen during the region.  This means that the scheduler will not be reentered for page faults, thread suspensions, kernel asynchronous
-        ///     procedure calls (APCs), and so forth, for a UMS thread.
-        /// </summary>
-        /// <returns>
-        ///     The new depth of critical region.  Critical regions are reentrant.
-        /// </returns>
-        /// <seealso cref="IUMSThreadProxy::ExitCriticalRegion Method"/>
-        /**/
-        virtual int EnterCriticalRegion() =0;
-
-        /// <summary>
-        ///     Called in order to exit a critical region.
-        /// </summary>
-        /// <returns>
-        ///     The new depth of critical region.  Critical regions are reentrant.
-        /// </returns>
-        /// <seealso cref="IUMSThreadProxy::EnterCriticalRegion Method"/>
-        /**/
-        virtual int ExitCriticalRegion() =0;
-
-        /// <summary>
-        ///     Called in order to enter a hyper-critical region.  When inside a hyper-critical region, the scheduler will not observe any blocking operations
-        ///     that happen during the region.  This means the scheduler will not be reentered for blocking function calls, lock acquisition attempts which
-        ///     block, page faults, thread suspensions, kernel asynchronous procedure calls (APCs), and so forth, for a UMS thread.
-        /// </summary>
-        /// <returns>
-        ///     The new depth of hyper-critical region.  Hyper-critical regions are reentrant.
-        /// </returns>
-        /// <remarks>
-        ///     The scheduler must be extraordinarily careful about what methods it calls and what locks it acquires in such regions.  If code in such a
-        ///     region blocks on a lock that is held by something the scheduler is responsible for scheduling, deadlock may ensue.
-        /// </remarks>
-        /// <seealso cref="IUMSThreadProxy::ExitHyperCriticalRegion Method"/>
-        /**/
-        virtual int EnterHyperCriticalRegion() =0;
-
-        /// <summary>
-        ///     Called in order to exit a hyper-critical region.
-        /// </summary>
-        /// <returns>
-        ///     The new depth of hyper-critical region.  Hyper-critical regions are reentrant.
-        /// </returns>
-        /// <seealso cref="IUMSThreadProxy::EnterHyperCriticalRegion Method"/>
-        /**/
-        virtual int ExitHyperCriticalRegion() =0;
-
-        /// <summary>
-        ///     Returns what kind of critical region the thread proxy is within.  Because hyper-critical regions are a superset of critical regions, if code
-        ///     has entered a critical region and then a hyper-critical region, <c>InsideHyperCriticalRegion</c> will be returned.
-        /// </summary>
-        /// <returns>
-        ///     The type of critical region the thread proxy is within.
-        /// </returns>
-        /// <seealso cref="CriticalRegionType Enumeration"/>
-        /**/
-        virtual CriticalRegionType GetCriticalRegionType() const =0;
     };
 
     /// <summary>
@@ -611,8 +537,7 @@ namespace Concurrency
         /// <returns>
         ///     A boolean value. A value of <c>true</c> indicates that the thread proxy returned from the <c>Deactivate</c> method in response to
         ///     a call to the <c>Activate</c> method. A value of <c>false</c> indicates that the thread proxy returned from the method in response
-        ///     to a notification event in the Resource Manager. On a user-mode schedulable (UMS) thread scheduler, this indicates that items have
-        ///     appeared on the scheduler's completion list, and the scheduler is required to handle them.
+        ///     to a notification event in the Resource Manager.
         /// </returns>
         /// <remarks>
         ///     Use this method to temporarily stop executing a virtual processor root when you cannot find any work in your scheduler.
@@ -625,10 +550,6 @@ namespace Concurrency
         ///     and <c>Deactivate</c> methods are paired, but they are not required to be received in a specific order. The Resource
         ///     Manager can handle receiving a call to the <c>Activate</c> method before it receives a call to the <c>Deactivate</c> method it was
         ///     meant for.</para>
-        ///     <para>If a virtual processor root awakens and the return value from the <c>Deactivate</c> method is the value <c>false</c>, the scheduler
-        ///     should query the UMS completion list via the <c>IUMSCompletionList::GetUnblockNotifications</c> method, act on that information, and
-        ///     then subsequently call the <c>Deactivate</c> method again.  This should be repeated until such time as the <c>Deactivate</c> method returns
-        ///     the value <c>true</c>.</para>
         ///     <para><c>invalid_argument</c> is thrown if the argument <paramref name="pContext"/> has the value <c>NULL</c>.</para>
         ///     <para><c>invalid_operation</c> is thrown if the virtual processor root has never been activated, or the argument <paramref name="pContext"/>
         ///     does not represent the execution context that was most recently dispatched by this virtual processor root.</para>
@@ -638,7 +559,6 @@ namespace Concurrency
         /// </remarks>
         /// <seealso cref="IVirtualProcessorRoot::Activate Method"/>
         /// <seealso cref="IExecutionResource::CurrentSubscriptionLevel Method"/>
-        /// <seealso cref="IUMSCompletionList::GetUnblockNotifications Method"/>
         /**/
         virtual bool Deactivate(_Inout_ IExecutionContext * pContext) =0;
 
@@ -850,112 +770,6 @@ namespace Concurrency
     };
 
     /// <summary>
-    ///     Represents a notification from the Resource Manager that a thread proxy which blocked and triggered a return to the scheduler's
-    ///     designated scheduling context has unblocked and is ready to be scheduled. This interface is invalid once the thread proxy's
-    ///     associated execution context, returned from the <c>GetContext</c> method, is rescheduled.
-    /// </summary>
-    /// <seealso cref="IUMSScheduler Structure"/>
-    /// <seealso cref="IUMSCompletionList Structure"/>
-    /**/
-    struct IUMSUnblockNotification
-    {
-        /// <summary>
-        ///     Returns the <c>IExecutionContext</c> interface for the execution context associated with the thread proxy which has
-        ///     unblocked.  Once this method returns and the underlying execution context has been rescheduled via a call to the
-        ///     <c>IThreadProxy::SwitchTo</c> method, this interface is no longer valid.
-        /// </summary>
-        /// <returns>
-        ///     An <c>IExecutionContext</c> interface for the execution context to a thread proxy which has unblocked.
-        /// </returns>
-        /**/
-        virtual IExecutionContext* GetContext() =0;
-
-        /// <summary>
-        ///     Returns the next <c>IUMSUnblockNotification</c> interface in the chain returned from the method
-        ///     <c>IUMSCompletionList::GetUnblockNotifications</c>.
-        /// </summary>
-        /// <returns>
-        ///     The next <c>IUMSUnblockNotification</c> interface in the chain returned from the method <c>IUMSCompletionList::GetUnblockNotifications</c>.
-        /// </returns>
-        /**/
-        virtual IUMSUnblockNotification* GetNextUnblockNotification() =0;
-    };
-
-    /// <summary>
-    ///     Represents a UMS completion list.  When a UMS thread blocks, the scheduler's designated scheduling context is dispatched
-    ///     in order to make a decision of what to schedule on the underlying virtual processor root while the original thread is blocked.  When the
-    ///     original thread unblocks, the operating system queues it to the completion list which is accessible through this interface.  The scheduler can
-    ///     query the completion list on the designated scheduling context or any other place it searches for work.
-    /// </summary>
-    /// <remarks>
-    ///     A scheduler must be extraordinarily careful about what actions are performed after utilizing this interface to dequeue items from the completion
-    ///     list.  The items should be placed on the scheduler's list of runnable contexts and be generally accessible as soon as possible.  It is entirely
-    ///     possible that one of the dequeued items has been given ownership of an arbitrary lock.  The scheduler can make no arbitrary function calls that may
-    ///     block between the call to dequeue items and the placement of those items on a list that can be generally accessed from within the scheduler.
-    /// </remarks>
-    /// <seealso cref="IUMSScheduler Structure"/>
-    /// <seealso cref="IUMSUnblockNotification Structure"/>
-    /**/
-    struct IUMSCompletionList
-    {
-        /// <summary>
-        ///     Retrieves a chain of <c>IUMSUnblockNotification</c> interfaces representing execution contexts whose associated thread proxies
-        ///     have unblocked since the last time this method was invoked.
-        /// </summary>
-        /// <returns>
-        ///     A chain of <c>IUMSUnblockNotification</c> interfaces.
-        /// </returns>
-        /// <remarks>
-        ///     The returned notifications are invalid once the execution contexts are rescheduled.
-        /// </remarks>
-        /// <seealso cref="IUMSUnblockNotification Structure"/>
-        /**/
-        virtual IUMSUnblockNotification *GetUnblockNotifications() =0;
-    };
-
-    /// <summary>
-    ///     An interface to an abstraction of a work scheduler that wants the Concurrency Runtime's Resource Manager to hand it user-mode
-    ///     schedulable (UMS) threads. The Resource Manager uses this interface to communicate with UMS thread schedulers. The <c>IUMSScheduler</c> interface
-    ///     inherits from the <c>IScheduler</c> interface.
-    /// </summary>
-    /// <remarks>
-    ///     If you are implementing a custom scheduler that communicates with the Resource Manager, and you want UMS threads to be handed to your scheduler
-    ///     instead of ordinary Win32 threads, you should provide an implementation of the <c>IUMSScheduler</c> interface. In addition, you should set the
-    ///     policy value for the scheduler policy key <c>SchedulerKind</c> to be <c>UmsThreadDefault</c>. If the policy specifies UMS thread, the
-    ///     <c>IScheduler</c> interface that is passed as a parameter to the <see cref="IResourceManager::RegisterScheduler Method">IResourceManager::RegisterScheduler
-    ///     </see> method must be an <c>IUMSScheduler</c> interface.
-    ///     <para>The Resource Manager is able to hand you UMS threads only on operating systems that have the UMS feature. 64-bit operating systems with
-    ///     version Windows 7 and higher support UMS threads.  If you create a scheduler policy with the <c>SchedulerKind</c> key set to the value
-    ///     <c>UmsThreadDefault</c> and the underlying platform does not support UMS, the value of the <c>SchedulerKind</c> key on that policy will
-    ///     be changed to the value <c>ThreadScheduler</c>.  You should always read back this policy value before expecting to receive UMS threads.</para>
-    ///     <para> The <c>IUMSScheduler</c> interface is one end of a two-way channel of communication between a scheduler and the Resource Manager.
-    ///     The other end is represented by the <c>IResourceManager</c> and <c>ISchedulerProxy</c> interfaces, which are implemented by the Resource Manager.</para>
-    /// </remarks>
-    /// <seealso cref="PolicyElementKey Enumeration"/>
-    /// <seealso cref="IScheduler Structure"/>
-    /// <seealso cref="IUMSCompletionList Structure"/>
-    /// <seealso cref="IResourceManager Structure"/>
-    /**/
-    struct IUMSScheduler : public IScheduler
-    {
-        /// <summary>
-        ///     Assigns an <c>IUMSCompletionList</c> interface to a UMS thread scheduler.
-        /// </summary>
-        /// <param name="pCompletionList">
-        ///     The completion list interface for the scheduler.  There is a single list per scheduler.
-        /// </param>
-        /// <remarks>
-        ///     The Resource Manager will invoke this method on a scheduler that specifies it wants UMS threads, after the scheduler has requested an initial
-        ///     allocation of resources. The scheduler can use the <c>IUMSCompletionList</c> interface to determine when UMS thread proxies have unblocked.
-        ///     It is only valid to access this interface from a thread proxy running on a virtual processor root assigned to the UMS scheduler.
-        /// </remarks>
-        /// <seealso cref="IScheduler Structure"/>
-        /// <seealso cref="IUMSCompletionList Structure"/>
-        /**/
-        virtual void SetCompletionList(_Inout_ IUMSCompletionList * pCompletionList) =0;
-    };
-
-    /// <summary>
     ///     The interface by which schedulers communicate with the Concurrency Runtime's Resource Manager to negotiate resource allocation.
     /// </summary>
     /// <remarks>
@@ -1033,9 +847,7 @@ namespace Concurrency
         /// <remarks>
         ///     Normally, the <see cref="IThreadProxy::SwitchTo Method">IThreadProxy::SwitchTo</see> method will bind a thread proxy to an
         ///     execution context on demand.  There are, however, circumstances where it is necessary to bind a context in advance
-        ///     to ensure that the <c>SwitchTo</c> method switches to an already bound context.  This is the case on a UMS scheduling context as it
-        ///     cannot call methods that allocate memory, and binding a thread proxy may involve memory allocation if a thread proxy is not readily
-        ///     available in the free pool of the thread proxy factory.
+        ///     to ensure that the <c>SwitchTo</c> method switches to an already bound context.
         ///     <para><c>invalid_argument</c> is thrown if the parameter <paramref name="pContext"/> has the value <c>NULL</c>.</para>
         /// </remarks>
         /// <seealso cref="ISchedulerProxy::UnbindContext Method"/>
@@ -1261,8 +1073,7 @@ namespace Concurrency
         ///     with an <c>ISchedulerProxy</c> interface and hands it back to you. You can use the returned interface to request execution resources for use
         ///     by your scheduler, or to subscribe threads with the Resource Manager. The Resource Manager will use policy elements from the scheduler policy
         ///     returned by the <see cref="IScheduler::GetPolicy Method">IScheduler::GetPolicy</see> method to determine what type of threads the scheduler will
-        ///     need to execute work. If your <c>SchedulerKind</c> policy key has the value <c>UmsThreadDefault</c> and the value is read back out of the
-        ///     policy as the value <c>UmsThreadDefault</c>, the <c>IScheduler</c> interface passed to the method must be an <c>IUMSScheduler</c> interface.
+        ///     need to execute work.
         ///     <para>The method throws an <c>invalid_argument</c> exception if the parameter <paramref name="pScheduler"/> has the value <c>NULL</c> or if the
         ///     parameter <paramref name="version"/> is not a valid version for the communication interface.</para>
         /// </remarks>
@@ -1324,8 +1135,7 @@ namespace Concurrency
         enum OSVersion
         {
             /// <summary>
-            /// An operating system prior to Windows XP. The Concurrency Runtime is not supported on operating
-            /// systems with a version earlier than Windows XP with Service Pack 3.
+            /// An operating system prior to Windows XP.
             /// </summary>
             /**/
             UnsupportedOS,
@@ -1337,7 +1147,7 @@ namespace Concurrency
             XP,
 
             /// <summary>
-            ///     The Windows 2003 Server operating system.
+            ///     The Windows Server 2003 operating system.
             /// </summary>
             /**/
             Win2k3,

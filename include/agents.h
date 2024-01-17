@@ -424,7 +424,7 @@ namespace details
         // Capacity of the array.
         size_t  _M_size;
 
-        static const int _S_growthFactor = 2;
+        static constexpr int _S_growthFactor = 2;
     };
 
     //
@@ -1219,7 +1219,7 @@ private:
         return _Count;
     }
 
-    static const size_t _NOT_SET = SIZE_MAX;
+    static constexpr size_t _NOT_SET = SIZE_MAX;
 
     // Maximum number of links allowed.
     size_t _M_maxLinks;

@@ -16,17 +16,17 @@
 
 #pragma once
 
-#if !defined(_M_IX86) && !defined(_M_X64)
-#error This header is specific to X86, X64 and ARM64EC targets
+#if !defined(_M_IX86) && !defined(_M_X64) && !(defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
+#error This header is specific to X86, X64, ARM64, and ARM64EC targets
+#endif
+
+#if (defined(_M_ARM64) || defined(_M_ARM64EC)) && !defined(__INTRIN_H_)
+#error this header should only be included through <intrin.h>
 #endif
 
 #ifndef _INCLUDED_EMM
 #define _INCLUDED_EMM
 #ifndef __midl
-
-#if defined(_M_ARM64EC) && !defined(__INTRIN_H_)
-    #error this header should only be included through <intrin.h>
-#endif
 
 #if defined (_M_CEE_PURE)
         #error ERROR: EMM intrinsics not supported in the pure mode!
@@ -65,6 +65,12 @@ typedef struct __declspec(intrin_type) __declspec(align(16)) __m128d {
 extern "C" { /* Begin "C" */
   /* Intrinsics use C name-mangling. */
 #endif  /* defined __cplusplus */
+
+// Suppress C28251: Inconsistent annotation for prior declaration.
+// Depending on the include order the definition may not exist so
+// _Use_decl_annotations_ can not be used. 
+#pragma warning(push)
+#pragma warning(disable: 28251)
 
 /*
  * DP, arithmetic
@@ -425,7 +431,7 @@ extern __m128d _mm_castsi128_pd(__m128i);
  * Support for 64-bit extension intrinsics
  */
 
-#if defined (_M_X64)
+#if defined (_M_X64) || (defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
 extern __int64 _mm_cvtsd_si64(__m128d);
 extern __int64 _mm_cvttsd_si64(__m128d);
 extern __m128d _mm_cvtsi64_sd(__m128d, __int64);
@@ -433,7 +439,9 @@ extern __m128i _mm_cvtsi64_si128(__int64);
 extern __int64 _mm_cvtsi128_si64(__m128i);
 /* Alternate intrinsic name definitions */
 #define _mm_stream_si64 _mm_stream_si64x
-#endif  /* defined (_M_X64) */
+#endif  /* defined (_M_X64) || (defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS)) */
+
+#pragma warning(pop) // disable: 28251
 
 #if defined __cplusplus
 }; /* End "C" */

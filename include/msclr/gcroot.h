@@ -37,6 +37,7 @@
 #if _STL_COMPILER_PREPROCESSOR
 
 #include <stddef.h>
+#include <utility>
 
 
 #ifdef __cplusplus_cli

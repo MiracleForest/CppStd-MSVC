@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _THR_XTIMEC_H
 #define _THR_XTIMEC_H
 #include <yvals.h>
@@ -20,19 +19,19 @@ _STL_DISABLE_CLANG_WARNINGS
 
 _EXTERN_C
 
-struct xtime { // store time with nanosecond resolution
-    __time64_t sec;
-    long nsec;
-};
+#ifdef _CRTBLD
+_CRTIMP2_PURE long __cdecl _Xtime_diff_to_millis2(const _timespec64*, const _timespec64*) noexcept;
+#endif // _CRTBLD
 
-_CRTIMP2_PURE int __cdecl xtime_get(xtime*, int);
+_CRTIMP2_PURE long long __cdecl _Xtime_get_ticks() noexcept;
 
-_CRTIMP2_PURE long __cdecl _Xtime_diff_to_millis(const xtime*);
-_CRTIMP2_PURE long __cdecl _Xtime_diff_to_millis2(const xtime*, const xtime*);
-_CRTIMP2_PURE long long __cdecl _Xtime_get_ticks();
+#ifdef _CRTBLD
+// Used by several src files, but not dllexported.
+void _Timespec64_get_sys(_timespec64*) noexcept;
+#endif // defined(_CRTBLD)
 
-_CRTIMP2_PURE long long __cdecl _Query_perf_counter();
-_CRTIMP2_PURE long long __cdecl _Query_perf_frequency();
+_CRTIMP2_PURE long long __cdecl _Query_perf_counter() noexcept;
+_CRTIMP2_PURE long long __cdecl _Query_perf_frequency() noexcept;
 
 _END_EXTERN_C
 

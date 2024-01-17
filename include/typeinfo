@@ -3,8 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
-
 #ifndef _TYPEINFO_
 #define _TYPEINFO_
 #include <yvals_core.h>
@@ -21,6 +19,8 @@ _STL_DISABLE_CLANG_WARNINGS
 #pragma warning(disable : 4275) // non dll-interface class 'X' used as base for dll-interface class 'Y'
 
 #include <vcruntime_typeinfo.h>
+
+_EXPORT_STD extern "C++" class type_info; // for typeid, MSVC looks for type_info in the global namespace
 
 _STD_BEGIN
 
@@ -61,7 +61,7 @@ class __non_rtti_object : public bad_typeid { // report a non-RTTI object
 public:
     __non_rtti_object(const char* _Message) : bad_typeid(_Message) {}
 };
-#endif // !_HAS_EXCEPTIONS
+#endif // ^^^ !_HAS_EXCEPTIONS ^^^
 
 [[noreturn]] inline void _Throw_bad_cast() {
     _THROW(bad_cast{});

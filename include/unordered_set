@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _UNORDERED_SET_
 #define _UNORDERED_SET_
 #include <yvals_core.h>
@@ -66,6 +65,8 @@ class unordered_set : public _Hash<_Uset_traits<_Kty, _Uhash_compare<_Kty, _Hash
 public:
     static_assert(!_ENFORCE_MATCHING_ALLOCATORS || is_same_v<_Kty, typename _Alloc::value_type>,
         _MISMATCHED_ALLOCATOR_MESSAGE("unordered_set<T, Hasher, Eq, Allocator>", "T"));
+    static_assert(is_object_v<_Kty>, "The C++ Standard forbids containers of non-object types "
+                                     "because of [container.requirements].");
 
 private:
     using _Mytraits      = _Uhash_compare<_Kty, _Hasher, _Keyeq>;
@@ -384,7 +385,7 @@ void swap(unordered_set<_Kty, _Hasher, _Keyeq, _Alloc>& _Left,
 
 #if _HAS_CXX20
 _EXPORT_STD template <class _Kty, class _Hasher, class _Keyeq, class _Alloc, class _Pr>
-typename unordered_set<_Kty, _Hasher, _Keyeq, _Alloc>::size_type erase_if(
+unordered_set<_Kty, _Hasher, _Keyeq, _Alloc>::size_type erase_if(
     unordered_set<_Kty, _Hasher, _Keyeq, _Alloc>& _Cont, _Pr _Pred) {
     return _Erase_nodes_if(_Cont, _Pass_fn(_Pred));
 }
@@ -411,6 +412,8 @@ class unordered_multiset : public _Hash<_Uset_traits<_Kty, _Uhash_compare<_Kty, 
 public:
     static_assert(!_ENFORCE_MATCHING_ALLOCATORS || is_same_v<_Kty, typename _Alloc::value_type>,
         _MISMATCHED_ALLOCATOR_MESSAGE("unordered_multiset<T, Hasher, Eq, Allocator>", "T"));
+    static_assert(is_object_v<_Kty>, "The C++ Standard forbids containers of non-object types "
+                                     "because of [container.requirements].");
 
 private:
     using _Mytraits      = _Uhash_compare<_Kty, _Hasher, _Keyeq>;
@@ -725,7 +728,7 @@ void swap(unordered_multiset<_Kty, _Hasher, _Keyeq, _Alloc>& _Left,
 
 #if _HAS_CXX20
 _EXPORT_STD template <class _Kty, class _Hasher, class _Keyeq, class _Alloc, class _Pr>
-typename unordered_multiset<_Kty, _Hasher, _Keyeq, _Alloc>::size_type erase_if(
+unordered_multiset<_Kty, _Hasher, _Keyeq, _Alloc>::size_type erase_if(
     unordered_multiset<_Kty, _Hasher, _Keyeq, _Alloc>& _Cont, _Pr _Pred) {
     return _Erase_nodes_if(_Cont, _Pass_fn(_Pred));
 }

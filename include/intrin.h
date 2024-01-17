@@ -31,7 +31,7 @@
 
 #ifndef _M_CEE_PURE
 
-    #if (defined (_M_IX86) || defined (_M_X64)) && !defined(_CHPE_ONLY_) && (!defined(_M_ARM64EC) || !defined(_DISABLE_SOFTINTRIN_))
+    #if (defined (_M_IX86) || defined (_M_X64) || (defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))) && !defined(_CHPE_ONLY_) && (!defined(_M_ARM64EC) || !defined(_DISABLE_SOFTINTRIN_))
         #include <immintrin.h>
         #include <ammintrin.h>
     #endif
@@ -54,6 +54,12 @@
 #if defined (__cplusplus)
 extern "C" {
 #endif  /* defined (__cplusplus) */
+
+// Suppress C28251: Inconsistent annotation for prior declaration.
+// Depending on the include order the definition may not exist so
+// _Use_decl_annotations_ can not be used. 
+#pragma warning(push)
+#pragma warning(disable: 28251)
 
 __MACHINEARM(int _AddSatInt(int, int))
 __MACHINE(void * _AddressOfReturnAddress(void))
@@ -265,6 +271,7 @@ __MACHINEX64(unsigned long __readgsdword(unsigned long))
 __MACHINEX64(unsigned __int64 __readgsqword(unsigned long))
 __MACHINEX64(unsigned short __readgsword(unsigned long))
 __MACHINEX86_X64(unsigned __int64 __readmsr(unsigned long))
+__MACHINEX64(void __readmsrlist(unsigned __int64, unsigned __int64 *, unsigned __int64 *))
 __MACHINEX86_X64(unsigned __int64 __readpmc(unsigned long))
 __MACHINEARM64(unsigned char __readx18byte(unsigned long))
 __MACHINEARM64(unsigned long __readx18dword(unsigned long))
@@ -328,6 +335,8 @@ __MACHINEX64(void __writegsdword(unsigned long, unsigned long))
 __MACHINEX64(void __writegsqword(unsigned long, unsigned __int64))
 __MACHINEX64(void __writegsword(unsigned long, unsigned short))
 __MACHINEX86_X64(void __writemsr(unsigned long, unsigned __int64))
+__MACHINEX64(void __writemsrlist(unsigned __int64, unsigned __int64 *, unsigned __int64 *))
+__MACHINEX86_X64(void __writemsrns(unsigned long, unsigned __int64))
 __MACHINEARM64(void __writex18byte(unsigned long, unsigned char))
 __MACHINEARM64(void __writex18dword(unsigned long, unsigned long))
 __MACHINEARM64(void __writex18qword(unsigned long, unsigned __int64))
@@ -933,14 +942,34 @@ __MACHINEX86_X64(void _lgdt(void *))
 __MACHINEX86_X64(void _sgdt(void *))
 __MACHINEX86_X64(void _clac(void))
 __MACHINEX86_X64(void _stac(void))
-__MACHINEX86_X64(unsigned char __cdecl _addcarry_u8(unsigned char, unsigned char, unsigned char, unsigned char *))
-__MACHINEX86_X64(unsigned char __cdecl _subborrow_u8(unsigned char, unsigned char, unsigned char, unsigned char *))
-__MACHINEX86_X64(unsigned char __cdecl _addcarry_u16(unsigned char, unsigned short, unsigned short, unsigned short *))
-__MACHINEX86_X64(unsigned char __cdecl _subborrow_u16(unsigned char, unsigned short, unsigned short, unsigned short *))
-__MACHINEX86_X64(unsigned char __cdecl _addcarry_u32(unsigned char, unsigned int, unsigned int, unsigned int *))
-__MACHINEX86_X64(unsigned char __cdecl _subborrow_u32(unsigned char, unsigned int, unsigned int, unsigned int *))
+__MACHINEX86_X64(unsigned char _addcarry_u8(unsigned char, unsigned char, unsigned char, unsigned char *))
+__MACHINEX86_X64(unsigned char _subborrow_u8(unsigned char, unsigned char, unsigned char, unsigned char *))
+__MACHINEX86_X64(unsigned char _addcarry_u16(unsigned char, unsigned short, unsigned short, unsigned short *))
+__MACHINEX86_X64(unsigned char _subborrow_u16(unsigned char, unsigned short, unsigned short, unsigned short *))
+__MACHINEX86_X64(unsigned char _addcarry_u32(unsigned char, unsigned int, unsigned int, unsigned int *))
+__MACHINEX86_X64(unsigned char _subborrow_u32(unsigned char, unsigned int, unsigned int, unsigned int *))
+__MACHINEX86_X64(unsigned char _add_overflow_i8(unsigned char,  signed char,  signed char, signed char *))
+__MACHINEX86_X64(unsigned char _add_overflow_i16(unsigned char, signed short, signed short, signed short *))
+__MACHINEX86_X64(unsigned char _add_overflow_i32(unsigned char, signed int, signed int, signed int *))
+__MACHINEX64(unsigned char _add_overflow_i64(unsigned char, signed __int64, signed __int64, signed __int64 *))
+__MACHINEX86_X64(unsigned char _sub_overflow_i8(unsigned char,  signed char, signed char, signed char *))
+__MACHINEX86_X64(unsigned char _sub_overflow_i16(unsigned char, signed short, signed short, signed short *))
+__MACHINEX86_X64(unsigned char _sub_overflow_i32(unsigned char, signed int, signed int, signed int *))
+__MACHINEX64(unsigned char _sub_overflow_i64(unsigned char, signed __int64, signed __int64, signed __int64 *))
+__MACHINEX86_X64(unsigned char _mul_overflow_i16(signed short, signed short, signed short *))
+__MACHINEX86_X64(unsigned char _mul_overflow_i32(signed int, signed int, signed int *))
+__MACHINEX64(unsigned char _mul_overflow_i64(signed __int64, signed __int64, signed __int64 *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_i8(signed char, signed char, signed short *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_i16(signed short, signed short, signed short *, signed short *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_i32(signed int, signed int, signed int *, signed int *))
+__MACHINEX64(unsigned char _mul_full_overflow_i64(signed __int64, signed __int64, signed __int64 *, signed __int64 *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_u8(unsigned char, unsigned char, unsigned short *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_u16(unsigned short, unsigned short, unsigned short *, unsigned short *))
+__MACHINEX86_X64(unsigned char _mul_full_overflow_u32(unsigned int, unsigned int, unsigned int *, unsigned int *))
+__MACHINEX64(unsigned char _mul_full_overflow_u64(unsigned __int64, unsigned __int64, unsigned __int64 *, unsigned __int64 *))
 __MACHINEX86_X64(void _mm_monitorx(void const *, unsigned int, unsigned int))
 __MACHINEX86_X64(void _mm_mwaitx(unsigned int, unsigned int, unsigned int))
+__MACHINEX64(unsigned __int64 _rdpru(unsigned int))
 __MACHINEX64(unsigned int __rmpupdate(unsigned __int64, rmp_seg *, int))
 __MACHINEX64(unsigned int __psmash(unsigned __int64))
 __MACHINEX64(unsigned int __rmpadjust(unsigned __int64, int, int))
@@ -948,10 +977,36 @@ __MACHINEX64(unsigned int __pvalidate(unsigned __int64, int, int, int*))
 __MACHINEX86_X64(void __svm_invlpgb(void*, int))
 __MACHINEX86_X64(void __svm_tlbsync(void))
 __MACHINEARM64_X64(void * _AddressOfNextInstruction(void))
+__MACHINEX64(unsigned char __is_unorderedf(float, float))
+__MACHINEX64(unsigned char __is_unordered(double, double))
+__MACHINEX64(unsigned char __is_unorderedl(long double, long double))
+__MACHINEX64(unsigned char __is_nanf(float))
+__MACHINEX64(unsigned char __is_nan(double))
+__MACHINEX64(unsigned char __is_nanl(long double))
+__MACHINEX64(unsigned char __is_normalf(float))
+__MACHINEX64(unsigned char __is_normal(double))
+__MACHINEX64(unsigned char __is_normall(long double))
+__MACHINEX64(unsigned char __is_finitef(float))
+__MACHINEX64(unsigned char __is_finite(double))
+__MACHINEX64(unsigned char __is_finitel(long double))
+__MACHINEX64(unsigned char __is_infinityf(float))
+__MACHINEX64(unsigned char __is_infinity(double))
+__MACHINEX64(unsigned char __is_infinityl(long double))
+__MACHINEX64(unsigned char __is_subnormalf(float))
+__MACHINEX64(unsigned char __is_subnormal(double))
+__MACHINEX64(unsigned char __is_subnormall(long double))
+__MACHINEX64(float __fminf(float, float))
+__MACHINEX64(double __fmin(double, double))
+__MACHINEX64(long double __fminl(long double, long double))
+__MACHINEX64(float __fmaxf(float, float))
+__MACHINEX64(double __fmax(double, double))
+__MACHINEX64(long double __fmaxl(long double, long double))
+
+#pragma warning(pop) // disable: 28251
 
 #ifndef _M_CEE_PURE
 
-    #if defined(_M_ARM64EC) && !defined(_DISABLE_SOFTINTRIN_)
+    #if (defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS)) || (defined(_M_ARM64EC) && !defined(_DISABLE_SOFTINTRIN_))
     /***
      * softintrin.h includes widemath.h, which uses _rotr64, so
      * softintrin.h must be included after declaration of _rotr64.

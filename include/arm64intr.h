@@ -52,21 +52,27 @@ _ARM64INTR_BARRIER_TYPE;
 void __dmb(unsigned int _Type);
 void __dsb(unsigned int _Type);
 void __isb(unsigned int _Type);
+void __sb(void);
 
-unsigned __int8 __ldar8(unsigned __int8 volatile * _Target);
-unsigned __int16 __ldar16(unsigned __int16 volatile * _Target);
-unsigned __int32 __ldar32(unsigned __int32 volatile * _Target);
-unsigned __int64 __ldar64(unsigned __int64 volatile * _Target);
+unsigned __int8 __ldar8(const volatile unsigned __int8 * _Target);
+unsigned __int16 __ldar16(const volatile unsigned __int16 * _Target);
+unsigned __int32 __ldar32(const volatile unsigned __int32 * _Target);
+unsigned __int64 __ldar64(const volatile unsigned __int64 * _Target);
 
-unsigned __int8 __ldapr8(unsigned __int8 volatile * _Target);
-unsigned __int16 __ldapr16(unsigned __int16 volatile * _Target);
-unsigned __int32 __ldapr32(unsigned __int32 volatile * _Target);
-unsigned __int64 __ldapr64(unsigned __int64 volatile * _Target);
+unsigned __int8 __ldapr8(const volatile unsigned __int8 * _Target);
+unsigned __int16 __ldapr16(const volatile unsigned __int16 * _Target);
+unsigned __int32 __ldapr32(const volatile unsigned __int32 * _Target);
+unsigned __int64 __ldapr64(const volatile unsigned __int64 * _Target);
 
-void __stlr8(unsigned __int8 volatile * _Target, unsigned __int8 _Value);
-void __stlr16(unsigned __int16 volatile * _Target, unsigned __int16 _Value);
-void __stlr32(unsigned __int32 volatile * _Target, unsigned __int32 _Value);
-void __stlr64(unsigned __int64 volatile * _Target, unsigned __int64 _Value);
+unsigned __int8 __load_acquire8(const volatile unsigned __int8 * _Target);
+unsigned __int16 __load_acquire16(const volatile unsigned __int16 * _Target);
+unsigned __int32 __load_acquire32(const volatile unsigned __int32 * _Target);
+unsigned __int64 __load_acquire64(const volatile unsigned __int64 * _Target);
+
+void __stlr8(volatile unsigned __int8 * _Target, unsigned __int8 _Value);
+void __stlr16(volatile unsigned __int16 * _Target, unsigned __int16 _Value);
+void __stlr32(volatile unsigned __int32 * _Target, unsigned __int32 _Value);
+void __stlr64(volatile unsigned __int64 * _Target, unsigned __int64 _Value);
 
 unsigned __int8 __swp8(unsigned __int8 volatile * _Target, unsigned __int8 _Value);
 unsigned __int16 __swp16(unsigned __int16 volatile * _Target, unsigned __int16 _Value);

@@ -154,7 +154,7 @@ public:
 
     // Destructor
     //
-    ~_bstr_t() throw();
+    ~_bstr_t() noexcept;
 
     // Assignment operators
     //
@@ -266,7 +266,7 @@ private:
 
         // Prevent deletes from outside. Release() must be used.
         //
-        ~Data_t() throw();
+        ~Data_t() noexcept;
 
         void _Free() throw();
     };
@@ -338,7 +338,7 @@ inline _bstr_t::_bstr_t(BSTR bstr, bool fCopy)
 
 // Destructor
 //
-inline _bstr_t::~_bstr_t() throw()
+inline _bstr_t::~_bstr_t() noexcept
 {
     _Free();
 }
@@ -919,7 +919,7 @@ inline void* _bstr_t::Data_t::operator new(size_t sz)
 
 // Destruct this object
 //
-inline _bstr_t::Data_t::~Data_t() throw()
+inline _bstr_t::Data_t::~Data_t() noexcept
 {
     _Free();
 }
@@ -1038,7 +1038,7 @@ public:
 
     // Destructor
     //
-    ~_variant_t() throw() ;
+    ~_variant_t() noexcept;
 
     // Extractors
     //
@@ -2330,7 +2330,7 @@ inline void _variant_t::SetString(const char* pSrc)
 //
 //////////////////////////////////////////////////////////////////////////////////////////
 
-inline _variant_t::~_variant_t() throw()
+inline _variant_t::~_variant_t() noexcept
 {
     ::VariantClear(this);
 }

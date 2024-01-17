@@ -71,11 +71,11 @@ namespace details
         typedef size_t _Size_type;
 
         // Size constants
-        static const _Segment_index_t _Default_initial_segments = 1; // 2 initial items
+        static constexpr _Segment_index_t _Default_initial_segments = 1; // 2 initial items
 
         // Number of slots for segment's pointers inside the class
-        static const _Segment_index_t _Pointers_per_short_table = 3; // to fit into 8 words of entire structure
-        static const _Segment_index_t _Pointers_per_long_table = sizeof(_Segment_index_t) * 8; // one segment per bit
+        static constexpr _Segment_index_t _Pointers_per_short_table = 3; // to fit into 8 words of entire structure
+        static constexpr _Segment_index_t _Pointers_per_long_table = sizeof(_Segment_index_t) * 8; // one segment per bit
 
         // Segment pointer. Can be zero-initialized.
         struct _Segment_t
@@ -97,6 +97,7 @@ namespace details
         {
             _My_early_size = 0;
             _My_first_block = 0; // here is not _Default_initial_segments
+            _My_vector_allocator_ptr = nullptr;
             for( _Segment_index_t _I = 0; _I < _Pointers_per_short_table; _I++)
                 _My_storage[_I]._My_array = nullptr;
             _My_segment = _My_storage;

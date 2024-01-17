@@ -12,10 +12,14 @@
 *
 * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
-#pragma once
 
 #ifndef _PPLTASKS_H
 #define _PPLTASKS_H
+
+#include <yvals_core.h>
+
+#if _STL_COMPILER_PREPROCESSOR
+
 #include <pplwin.h>
 
 #include <functional>
@@ -58,16 +62,16 @@
 #define _PPL_TASK_ERROR_REPORT_ENABLED false
 #endif
 
-#pragma pack(push,_CRT_PACKING)
+#pragma pack(push, _CRT_PACKING)
+#pragma warning(push, _STL_WARNING_LEVEL)
+#pragma warning(disable : _STL_DISABLED_WARNINGS)
+_STL_DISABLE_CLANG_WARNINGS
+#pragma push_macro("new")
+#undef new
 
-#pragma warning(push)
 #pragma warning(disable: 28197)
 #pragma warning(disable: 4100) // Unreferenced formal parameter - needed for document generation
 #pragma warning(disable: 4127) // constant express in if condition - we use it for meta programming
-
-// All CRT public header files are required to be protected from the macro new
-#pragma push_macro("new")
-#undef new
 
 extern "C++" { // attach declarations in namespace Concurrency to the global module, see N4910 [module.unit]/7
 
@@ -229,13 +233,13 @@ namespace details
     template<typename _Ty>
     struct _IsUnwrappedAsyncSelector
     {
-        static const bool _Value = true;
+        static constexpr bool _Value = true;
     };
 
     template<>
     struct _IsUnwrappedAsyncSelector<_TypeSelectorNoAsync>
     {
-        static const bool _Value = false;
+        static constexpr bool _Value = false;
     };
 
     template <typename _Ty>
@@ -297,7 +301,7 @@ namespace details
     template <typename _Type>
     struct _IsIAsyncInfo
     {
-        static const bool _Value = __is_base_of(Windows::Foundation::IAsyncInfo, typename _Unhat<_Type>::_Value);
+        static constexpr bool _Value = __is_base_of(Windows::Foundation::IAsyncInfo, typename _Unhat<_Type>::_Value);
     };
 
     template <typename _Ty>
@@ -318,8 +322,8 @@ namespace details
         typedef decltype(_AsyncOperationKindSelector(details::declval<_Type>())) _AsyncKind;
         typedef typename _NormalizeVoidToUnitType<_TaskRetType>::_Type _NormalizedTaskRetType;
 
-        static const bool _IsAsyncTask = _IsAsync;
-        static const bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
+        static constexpr bool _IsAsyncTask = _IsAsync;
+        static constexpr bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
     };
 
     template<typename _Type>
@@ -329,15 +333,15 @@ namespace details
         typedef _TaskRetType _NormalizedTaskRetType;
         typedef decltype(_AsyncOperationKindSelector((_Type)nullptr)) _AsyncKind;
 
-        static const bool _IsAsyncTask = true;
-        static const bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
+        static constexpr bool _IsAsyncTask = true;
+        static constexpr bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
     };
 
 #else  /* defined (__cplusplus_winrt) */
     template <typename _Type>
     struct _IsIAsyncInfo
     {
-        static const bool _Value = false;
+        static constexpr bool _Value = false;
     };
 
     template <typename _Type, bool _IsAsync = false>
@@ -347,8 +351,8 @@ namespace details
         typedef decltype(_AsyncOperationKindSelector(details::declval<_Type>())) _AsyncKind;
         typedef typename _NormalizeVoidToUnitType<_TaskRetType>::_Type _NormalizedTaskRetType;
 
-        static const bool _IsAsyncTask = false;
-        static const bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
+        static constexpr bool _IsAsyncTask = false;
+        static constexpr bool _IsUnwrappedTaskOrAsync = _IsUnwrappedAsyncSelector<_AsyncKind>::_Value;
     };
 #endif  /* defined (__cplusplus_winrt) */
 
@@ -362,8 +366,8 @@ namespace details
         typedef _TypeSelectorNoAsync _AsyncKind;
         typedef _Unit_type _NormalizedTaskRetType;
 
-        static const bool _IsAsyncTask = false;
-        static const bool _IsUnwrappedTaskOrAsync = false;
+        static constexpr bool _IsAsyncTask = false;
+        static constexpr bool _IsUnwrappedTaskOrAsync = false;
     };
 
     struct _BadContinuationParamType{};
@@ -453,16 +457,16 @@ namespace details
     struct _InitFunctorTypeTraits
     {
         typedef typename _TaskTypeTraits<_FuncRetType>::_AsyncKind _AsyncKind;
-        static const bool _IsAsyncTask = _TaskTypeTraits<_FuncRetType>::_IsAsyncTask;
-        static const bool _IsUnwrappedTaskOrAsync = _TaskTypeTraits<_FuncRetType>::_IsUnwrappedTaskOrAsync;
+        static constexpr bool _IsAsyncTask = _TaskTypeTraits<_FuncRetType>::_IsAsyncTask;
+        static constexpr bool _IsUnwrappedTaskOrAsync = _TaskTypeTraits<_FuncRetType>::_IsUnwrappedTaskOrAsync;
     };
 
     template<typename _Ty>
     struct _InitFunctorTypeTraits<_Ty, _Ty>
     {
         typedef _TypeSelectorNoAsync _AsyncKind;
-        static const bool _IsAsyncTask = false;
-        static const bool _IsUnwrappedTaskOrAsync = false;
+        static constexpr bool _IsAsyncTask = false;
+        static constexpr bool _IsUnwrappedTaskOrAsync = false;
     };
 
     /// <summary>
@@ -539,7 +543,7 @@ namespace details
             _Reset();
         }
 
-        _ContextCallback(bool _DeferCapture = false)
+        _ContextCallback(bool _DeferCapture = false) noexcept
         {
             if (_DeferCapture)
             {
@@ -572,7 +576,7 @@ namespace details
             _Assign(_Src._M_context._M_pContextCallback);
         }
 
-        _ContextCallback(_ContextCallback&& _Src)
+        _ContextCallback(_ContextCallback&& _Src) noexcept
         {
             _M_context._M_pContextCallback = _Src._M_context._M_pContextCallback;
             _Src._M_context._M_pContextCallback = nullptr;
@@ -588,7 +592,7 @@ namespace details
             return *this;
         }
 
-        _ContextCallback& operator=(_ContextCallback&& _Src)
+        _ContextCallback& operator=(_ContextCallback&& _Src) noexcept
         {
             if (this != &_Src)
             {
@@ -639,7 +643,7 @@ namespace details
             size_t _M_captureMethod;
         } _M_context;
 
-        static const size_t _S_captureDeferred = 1;
+        static constexpr size_t _S_captureDeferred = 1;
 
     };
 
@@ -969,13 +973,7 @@ public:
     /**/
     static task_continuation_context use_default()
     {
-        task_continuation_context _Default{_Tag{}};
-#if defined(PPL_TASK_CONTEXT_DEFAULT_ARBITRARY)
-        _Default._Resolve(false);
-#else   // use current by default
-        _Default._Resolve(true);
-#endif
-        return _Default;
+        return task_continuation_context{_Tag{}};
     }
 
     /// <summary>
@@ -1514,6 +1512,8 @@ namespace details
             _Canceled
         };
 
+#pragma warning(push)
+#pragma warning(disable : 4355) // 'this': used in base member initializer list (/Wall)
         _Task_impl_base(_CancellationTokenState * _PTokenState, scheduler_ptr _Scheduler_arg)
                           : _M_TaskState(_Created),
                             _M_fFromAsync(false), _M_fUnwrappedTask(false),
@@ -1526,6 +1526,7 @@ namespace details
             if (_M_pTokenState != _CancellationTokenState::_None())
                 _M_pTokenState->_Reference();
         }
+#pragma warning(pop)
 
         virtual ~_Task_impl_base()
         {
@@ -1608,7 +1609,7 @@ namespace details
                     // If the lambda body for this task (executed or waited upon in _RunAndWait above) happened to return a task
                     // which is to be unwrapped and plumbed to the output of this task, we must not only wait on the lambda body, we must
                     // wait on the **INNER** body. It is in theory possible that we could inline such if we plumb a series of things through;
-                    // however, this takes the tact of simply waiting upon the completion signal.
+                    // however, this simply waits upon the completion signal.
                     if (_M_fUnwrappedTask)
                     {
                         _M_TaskCollection._Wait();
@@ -2117,10 +2118,13 @@ namespace details
     template<typename _ReturnType>
     struct _Task_impl : public _Task_impl_base
     {
+        #pragma warning(push)
+        #pragma warning(disable: 26495) // _ReturnType is not necessarily default constructible.
         _Task_impl(_CancellationTokenState * _Ct, scheduler_ptr _Scheduler_arg)
             : _Task_impl_base(_Ct, _Scheduler_arg)
         {
         }
+        #pragma warning(pop)
 
         virtual ~_Task_impl()
         {
@@ -2306,7 +2310,7 @@ namespace details
             return _M_Result.Get();
         }
 
-        _ResultHolder<_ReturnType> _M_Result;        // this means that the result type must have a public default ctor.
+        _ResultHolder<_ReturnType> _M_Result;
         ::std::function<void()>    _M_InternalCancellation;
     };
 
@@ -2321,10 +2325,13 @@ namespace details
 
         typedef ::std::vector<typename _Task_ptr<_ResultType>::_Type> _TaskList;
 
+        #pragma warning(push)
+        #pragma warning(disable: 26495) // _ResultType is not necessarily default constructible.
         _Task_completion_event_impl() :
             _M_fHasValue(false), _M_fIsCanceled(false)
         {
         }
+        #pragma warning(pop)
 
         bool _HasUserException()
         {
@@ -2964,7 +2971,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task() : _M_Impl(nullptr)
+    task() noexcept : _M_Impl(nullptr)
     {
         // The default constructor should create a task with a nullptr impl. This is a signal that the
         // task is not usable and should throw if any wait(), get() or then() APIs are used.
@@ -3091,7 +3098,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task(const task& _Other): _M_Impl(_Other._M_Impl) {}
+    task(const task& _Other) noexcept : _M_Impl(_Other._M_Impl) {}
 
     /// <summary>
     ///     Constructs a <c>task</c> object.
@@ -3118,7 +3125,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task(task&& _Other): _M_Impl(::std::move(_Other._M_Impl)) {}
+    task(task&& _Other) noexcept : _M_Impl(::std::move(_Other._M_Impl)) {}
 
     /// <summary>
     ///     Replaces the contents of one <c>task</c> object with another.
@@ -3131,7 +3138,7 @@ public:
     ///     actual task as <paramref name="_Other"/> does.
     /// </remarks>
     /**/
-    task& operator=(const task& _Other)
+    task& operator=(const task& _Other) noexcept
     {
         if (this != &_Other)
         {
@@ -3151,7 +3158,7 @@ public:
     ///     actual task as <paramref name="_Other"/> does.
     /// </remarks>
     /**/
-    task& operator=(task&& _Other)
+    task& operator=(task&& _Other) noexcept
     {
         if (this != &_Other)
         {
@@ -3982,7 +3989,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task() : _M_unitTask()
+    task() noexcept : _M_unitTask()
     {
         // The default constructor should create a task with a nullptr impl. This is a signal that the
         // task is not usable and should throw if any wait(), get() or then() APIs are used.
@@ -4057,7 +4064,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task(const task& _Other): _M_unitTask(_Other._M_unitTask){}
+    task(const task& _Other) noexcept : _M_unitTask(_Other._M_unitTask){}
 
     /// <summary>
     ///     Constructs a <c>task</c> object.
@@ -4084,7 +4091,7 @@ public:
     ///     <para>For more information, see <see cref="Task Parallelism (Concurrency Runtime)"/>.</para>
     /// </remarks>
     /**/
-    task(task&& _Other) : _M_unitTask(::std::move(_Other._M_unitTask)) {}
+    task(task&& _Other) noexcept : _M_unitTask(::std::move(_Other._M_unitTask)) {}
 
     /// <summary>
     ///     Replaces the contents of one <c>task</c> object with another.
@@ -4097,7 +4104,7 @@ public:
     ///     actual task as <paramref name="_Other"/> does.
     /// </remarks>
     /**/
-    task& operator=(const task& _Other)
+    task& operator=(const task& _Other) noexcept
     {
         if (this != &_Other)
         {
@@ -4117,7 +4124,7 @@ public:
     ///     actual task as <paramref name="_Other"/> does.
     /// </remarks>
     /**/
-    task& operator=(task&& _Other)
+    task& operator=(task&& _Other) noexcept
     {
         if (this != &_Other)
         {
@@ -4917,26 +4924,26 @@ namespace details
     template<typename _Ty>
     struct _FunctorArguments
     {
-        static const size_t _Count = 0;
+        static constexpr size_t _Count = 0;
     };
 
     template<>
     struct _FunctorArguments<_OneArgumentFunctor>
     {
-        static const size_t _Count = 1;
+        static constexpr size_t _Count = 1;
     };
 
     template<>
     struct _FunctorArguments<_TwoArgumentFunctor>
     {
-        static const size_t _Count = 2;
+        static constexpr size_t _Count = 2;
     };
 
     template<typename _Ty>
     struct _FunctorTypeTraits
     {
         typedef decltype(_ArgumentCountHelper(&(_Ty::operator()))) _ArgumentCountType;
-        static const size_t _ArgumentCount = _FunctorArguments<_ArgumentCountType>::_Count;
+        static constexpr size_t _ArgumentCount = _FunctorArguments<_ArgumentCountType>::_Count;
 
         typedef decltype(_ReturnTypeClassHelperThunk(&(_Ty::operator()))) _ReturnType;
         typedef decltype(_Arg1ClassHelperThunk(&(_Ty::operator()))) _Argument1Type;
@@ -4947,7 +4954,7 @@ namespace details
     struct _FunctorTypeTraits<_Ty *>
     {
         typedef decltype(_ArgumentCountHelper(details::declval<_Ty*>())) _ArgumentCountType;
-        static const size_t _ArgumentCount = _FunctorArguments<_ArgumentCountType>::_Count;
+        static constexpr size_t _ArgumentCount = _FunctorArguments<_ArgumentCountType>::_Count;
 
         typedef decltype(_ReturnTypePFNHelperThunk(details::declval<_Ty*>())) _ReturnType;
         typedef decltype(_Arg1PFNHelperThunk(details::declval<_Ty*>())) _Argument1Type;
@@ -4957,14 +4964,14 @@ namespace details
     template<typename _Ty>
     struct _ProgressTypeTraits
     {
-        static const bool _TakesProgress = false;
+        static constexpr bool _TakesProgress = false;
         typedef void _ProgressType;
     };
 
     template<typename _Ty>
     struct _ProgressTypeTraits<progress_reporter<_Ty>>
     {
-        static const bool _TakesProgress = true;
+        static constexpr bool _TakesProgress = true;
         typedef _Ty _ProgressType;
     };
 
@@ -4972,8 +4979,8 @@ namespace details
     template<typename _Ty, size_t _Count = _FunctorTypeTraits<_Ty>::_ArgumentCount>
     struct _CAFunctorOptions
     {
-        static const bool _TakesProgress = false;
-        static const bool _TakesToken = false;
+        static constexpr bool _TakesProgress = false;
+        static constexpr bool _TakesToken = false;
         typedef void _ProgressType;
     };
 
@@ -4986,8 +4993,8 @@ namespace details
 
     public:
 
-        static const bool _TakesProgress = _ProgressTypeTraits<_Argument1Type>::_TakesProgress;
-        static const bool _TakesToken = !_TakesProgress;
+        static constexpr bool _TakesProgress = _ProgressTypeTraits<_Argument1Type>::_TakesProgress;
+        static constexpr bool _TakesToken = !_TakesProgress;
         typedef typename _ProgressTypeTraits<_Argument1Type>::_ProgressType _ProgressType;
     };
 
@@ -5000,8 +5007,8 @@ namespace details
 
     public:
 
-        static const bool _TakesProgress = true;
-        static const bool _TakesToken = true;
+        static constexpr bool _TakesProgress = true;
+        static constexpr bool _TakesToken = true;
         typedef typename _ProgressTypeTraits<_Argument1Type>::_ProgressType _ProgressType;
     };
 
@@ -5366,8 +5373,8 @@ namespace details
         typedef _SelectorTaskGenerator<_AsyncKind, _ReturnType> _SelectorTaskGenerator;
         typedef _TaskGenerator<_SelectorTaskGenerator, _TakesToken, true> _TaskGenerator;
 
-        static const bool _TakesProgress = true;
-        static const bool _TakesToken = _TakesToken;
+        static constexpr bool _TakesProgress = true;
+        static constexpr bool _TakesToken = _TakesToken;
     };
 
     template<typename _ProgressTypeParam, typename _ReturnTypeParam, typename _TaskTraits, bool _TakesToken>
@@ -5382,8 +5389,8 @@ namespace details
         typedef _SelectorTaskGenerator<_AsyncKind, _ReturnType> _SelectorTaskGenerator;
         typedef _TaskGenerator<_SelectorTaskGenerator, _TakesToken, false> _TaskGenerator;
 
-        static const bool _TakesProgress = false;
-        static const bool _TakesToken = _TakesToken;
+        static constexpr bool _TakesProgress = false;
+        static constexpr bool _TakesToken = _TakesToken;
     };
 
     template<typename _ProgressTypeParam, typename _TaskTraits, bool _TakesToken>
@@ -5398,8 +5405,8 @@ namespace details
         typedef _SelectorTaskGenerator<_AsyncKind, _ReturnType> _SelectorTaskGenerator;
         typedef _TaskGenerator<_SelectorTaskGenerator, _TakesToken, true> _TaskGenerator;
 
-        static const bool _TakesProgress = true;
-        static const bool _TakesToken = _TakesToken;
+        static constexpr bool _TakesProgress = true;
+        static constexpr bool _TakesToken = _TakesToken;
     };
 
     template<typename _ProgressTypeParam, typename _TaskTraits, bool _TakesToken>
@@ -5414,8 +5421,8 @@ namespace details
         typedef _SelectorTaskGenerator<_AsyncKind, _ReturnType> _SelectorTaskGenerator;
         typedef _TaskGenerator<_SelectorTaskGenerator, _TakesToken, false> _TaskGenerator;
 
-        static const bool _TakesProgress = false;
-        static const bool _TakesToken = _TakesToken;
+        static constexpr bool _TakesProgress = false;
+        static constexpr bool _TakesToken = _TakesToken;
     };
 
     template<typename _Function>
@@ -5425,8 +5432,8 @@ namespace details
         typedef typename _FunctorTypeTraits<_Function>::_Argument1Type _Argument1Type;
         typedef typename _CAFunctorOptions<_Function>::_ProgressType _ProgressType;
 
-        static const bool _TakesProgress = _CAFunctorOptions<_Function>::_TakesProgress;
-        static const bool _TakesToken = _CAFunctorOptions<_Function>::_TakesToken;
+        static constexpr bool _TakesProgress = _CAFunctorOptions<_Function>::_TakesProgress;
+        static constexpr bool _TakesToken = _CAFunctorOptions<_Function>::_TakesToken;
 
         typedef _TaskTypeTraits<_ReturnType> _TaskTraits;
         typedef _AsyncAttributes<_ProgressType, typename _TaskTraits::_TaskRetType, _TaskTraits, _TakesToken, _TakesProgress> _AsyncAttributes;
@@ -7106,7 +7113,10 @@ namespace details
 } // extern "C++"
 
 #pragma pop_macro("new")
+_STL_RESTORE_CLANG_WARNINGS
 #pragma warning(pop)
 #pragma pack(pop)
+
+#endif // _STL_COMPILER_PREPROCESSOR
 
 #endif // _PPLTASKS_H

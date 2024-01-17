@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _IOS_
 #define _IOS_
 #include <yvals_core.h>
@@ -38,7 +37,7 @@ public:
 
     void __CLR_OR_THIS_CALL clear(iostate _State = goodbit, bool _Reraise = false) {
         // set state, possibly reraise exception
-        ios_base::clear(_State | (_Mystrbuf ? ios_base::_Iostate{} : ios_base::badbit), _Reraise);
+        ios_base::clear(_State | (_Mystrbuf ? ios_base::goodbit : ios_base::badbit), _Reraise);
     }
 
 #if _HAS_OLD_IOSTREAMS_MEMBERS
@@ -47,8 +46,8 @@ public:
     }
 #endif // _HAS_OLD_IOSTREAMS_MEMBERS
 
-    void __CLR_OR_THIS_CALL setstate(
-        iostate _State, bool _Reraise = false) { // merge _State into state, possibly reraise exception
+    void __CLR_OR_THIS_CALL setstate(iostate _State, bool _Reraise = false) {
+        // merge _State into state, possibly reraise exception
         clear(rdstate() | _State, _Reraise);
     }
 
@@ -65,17 +64,17 @@ public:
         return *this;
     }
 
-    _Myos* __CLR_OR_THIS_CALL tie() const {
+    _Myos* __CLR_OR_THIS_CALL tie() const noexcept /* strengthened */ {
         return _Tiestr;
     }
 
-    _Myos* __CLR_OR_THIS_CALL tie(_Myos* _Newtie) { // set tie pointer
+    _Myos* __CLR_OR_THIS_CALL tie(_Myos* _Newtie) noexcept /* strengthened */ { // set tie pointer
         _Myos* _Oldtie = _Tiestr;
         _Tiestr        = _Newtie;
         return _Oldtie;
     }
 
-    _NODISCARD _Mysb* __CLR_OR_THIS_CALL rdbuf() const {
+    _NODISCARD _Mysb* __CLR_OR_THIS_CALL rdbuf() const noexcept /* strengthened */ {
         return _Mystrbuf;
     }
 
@@ -96,11 +95,11 @@ public:
         return _Oldlocale;
     }
 
-    _Elem __CLR_OR_THIS_CALL fill() const {
+    _Elem __CLR_OR_THIS_CALL fill() const noexcept /* strengthened */ {
         return _Fillch;
     }
 
-    _Elem __CLR_OR_THIS_CALL fill(_Elem _Newfill) { // set fill character
+    _Elem __CLR_OR_THIS_CALL fill(_Elem _Newfill) noexcept /* strengthened */ { // set fill character
         _Elem _Oldfill = _Fillch;
         _Fillch        = _Newfill;
         return _Oldfill;
@@ -114,7 +113,7 @@ public:
         return _STD use_facet<_Ctype>(getloc()).widen(_Byte);
     }
 
-    void __CLR_OR_THIS_CALL move(basic_ios& _Right) {
+    void __CLR_OR_THIS_CALL move(basic_ios& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Mystrbuf = nullptr;
             _Tiestr   = nullptr;
@@ -122,7 +121,7 @@ public:
         }
     }
 
-    void __CLR_OR_THIS_CALL move(basic_ios&& _Right) {
+    void __CLR_OR_THIS_CALL move(basic_ios&& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Mystrbuf = nullptr;
             _Tiestr   = nullptr;
@@ -136,13 +135,14 @@ public:
         _STD swap(_Tiestr, _Right._Tiestr);
     }
 
-    void __CLR_OR_THIS_CALL set_rdbuf(_Mysb* _Strbuf) { // set stream buffer pointer without changing state
+    void __CLR_OR_THIS_CALL set_rdbuf(_Mysb* _Strbuf) noexcept /* strengthened */ {
+        // set stream buffer pointer without changing state
         _Mystrbuf = _Strbuf;
     }
 
 protected:
-    void __CLR_OR_THIS_CALL init(_Mysb* _Strbuf = nullptr,
-        bool _Isstd                             = false) { // initialize with stream buffer pointer
+    void __CLR_OR_THIS_CALL init(_Mysb* _Strbuf = nullptr, bool _Isstd = false) {
+        // initialize with stream buffer pointer
         _Init(); // initialize ios_base
         _Mystrbuf = _Strbuf;
         _Tiestr   = nullptr;
@@ -160,9 +160,9 @@ protected:
     __CLR_OR_THIS_CALL basic_ios() {}
 
 private:
-    _Mysb* _Mystrbuf; // pointer to stream buffer
-    _Myos* _Tiestr; // pointer to tied output stream
-    _Elem _Fillch; // the fill character
+    _Mysb* _Mystrbuf{}; // pointer to stream buffer
+    _Myos* _Tiestr{}; // pointer to tied output stream
+    _Elem _Fillch{}; // the fill character
 
 public:
     __CLR_OR_THIS_CALL basic_ios(const basic_ios&)            = delete;
@@ -178,7 +178,7 @@ template class _CRTIMP2_PURE_IMPORT basic_ios<wchar_t, char_traits<wchar_t>>;
 
 #ifdef __FORCE_INSTANCE
 template class _CRTIMP2_PURE_IMPORT basic_ios<unsigned short, char_traits<unsigned short>>;
-#endif // __FORCE_INSTANCE
+#endif // defined(__FORCE_INSTANCE)
 #endif // defined(_DLL_CPPLIB)
 
 _EXPORT_STD inline ios_base& __CLRCALL_OR_CDECL boolalpha(ios_base& _Iosbase) { // set boolalpha

@@ -19,6 +19,10 @@
 
 #pragma warning(push)
 #pragma warning(disable: _VCRUNTIME_DISABLED_WARNINGS)
+// Suppress C28251: Inconsistent annotation for prior declaration.
+// Depending on the include order the definition may not exist so
+// _Use_decl_annotations_ can not be used. 
+#pragma warning(disable: 28251)
 
 #if defined(__cplusplus)
 extern "C" {
@@ -129,6 +133,8 @@ __MACHINEARM64(unsigned char _BitScanReverse64(unsigned long * _Index, unsigned 
 __MACHINE(unsigned char _bittest(long const *, long))
 __MACHINEARM_ARM64(unsigned int _CountLeadingZeros(unsigned long))
 __MACHINEARM_ARM64(unsigned int _CountLeadingZeros64(unsigned __int64))
+__MACHINEARM_ARM64(unsigned int _CountTrailingZeros(unsigned long))
+__MACHINEARM_ARM64(unsigned int _CountTrailingZeros64(unsigned __int64))
 __MACHINE(long _InterlockedAnd(long volatile * _Value, long _Mask))
 __MACHINE(short _InterlockedAnd16(short volatile * _Value, short _Mask))
 __MACHINEARM_ARM64(short _InterlockedAnd16_acq(short volatile * _Value, short _Mask))
@@ -296,6 +302,23 @@ __MACHINE(double __copysign(double, double))
 __MACHINE(float __copysignf(float, float))
 __MACHINE(unsigned __signbitvalue(double))
 __MACHINE(unsigned __signbitvaluef(float))
+__MACHINEARM64(unsigned __int8 __ldar8(const volatile unsigned __int8 * _Target))
+__MACHINEARM64(unsigned __int16 __ldar16(const volatile unsigned __int16 * _Target))
+__MACHINEARM64(unsigned __int32 __ldar32(const volatile unsigned __int32 * _Target))
+__MACHINEARM64(unsigned __int64 __ldar64(const volatile unsigned __int64 * _Target))
+// TRANSITION, VS 2022 17.7 Preview 1 will update intrin0.inl.h with _HAS_ARM64_LOAD_ACQUIRE and _MSC_FULL_VER >= 193632407 removed
+#if !defined(_HAS_ARM64_LOAD_ACQUIRE) && (_MSC_FULL_VER >= 193632407)
+#define _HAS_ARM64_LOAD_ACQUIRE 1
+#endif
+__MACHINEARM64(unsigned __int8 __load_acquire8(const volatile unsigned __int8 * _Target))
+__MACHINEARM64(unsigned __int16 __load_acquire16(const volatile unsigned __int16 * _Target))
+__MACHINEARM64(unsigned __int32 __load_acquire32(const volatile unsigned __int32 * _Target))
+__MACHINEARM64(unsigned __int64 __load_acquire64(const volatile unsigned __int64 * _Target))
+__MACHINEARM64(void __stlr8(volatile unsigned __int8 * _Target, unsigned __int8 _Value))
+__MACHINEARM64(void __stlr16(volatile unsigned __int16 * _Target, unsigned __int16 _Value))
+__MACHINEARM64(void __stlr32(volatile unsigned __int32 * _Target, unsigned __int32 _Value))
+__MACHINEARM64(void __stlr64(volatile unsigned __int64 * _Target, unsigned __int64 _Value))
+
 #if defined(__cplusplus)
 #if !defined(__clang__) && !defined(__EDG__) && !defined(__CUDACC__)
 __MACHINE(constexpr void * __cdecl __builtin_assume_aligned(const void *, size_t, ...) noexcept)
@@ -313,5 +336,5 @@ __MACHINE(void * __cdecl __builtin_assume_aligned(const void *, size_t, ...) noe
 #if defined(__cplusplus)
 }
 #endif
-#pragma warning(pop) // _VCRUNTIME_DISABLED_WARNINGS
+#pragma warning(pop) // disable: _VCRUNTIME_DISABLED_WARNINGS, 28251
 #endif /* _VCRT_COMPILER_PREPROCESSOR && !defined(__midl) */

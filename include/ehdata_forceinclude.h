@@ -187,7 +187,13 @@ typedef const struct _s_ThrowInfo {
 // compiler (see macro above); since this prototype is known to the FE along with the pre-injected
 // types, it has to match exactly.
 //
-extern "C" __declspec(noreturn) void __stdcall _CxxThrowException(void* pExceptionObject, _ThrowInfo* pThrowInfo);
+#if defined(BUILDING_C1XX_FORCEINCLUDE) || _MSC_FULL_VER >= 193826504 // TRANSITION, toolset update
+extern "C" __declspec(noreturn) void __stdcall _CxxThrowException(
+	void* pExceptionObject, _ThrowInfo* pThrowInfo) noexcept(false);
+#else // ^^^ Preparing force-include, or current compiler / toolset compiler, not preparing force-include vvv
+extern "C" __declspec(noreturn) void __stdcall _CxxThrowException(
+	void* pExceptionObject, _ThrowInfo* pThrowInfo);
+#endif // TRANSITION, toolset update
 
 extern "C" int __cdecl __CxxExceptionFilter(void* ppExcept, void* pType, int adjectives, void *pBuildObj);
 

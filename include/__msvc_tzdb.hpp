@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef __MSVC_TZDB_HPP
 #define __MSVC_TZDB_HPP
 #include <yvals.h>
@@ -64,6 +63,16 @@ struct __std_tzdb_sys_info {
     int32_t _Offset;
     int32_t _Save;
     const char* _Abbrev;
+};
+
+enum class __std_tzdb_sys_info_type : char {
+    // TRANSITION, ABI: In order to be compatible with existing object files which do not know about
+    // `__std_tzdb_sys_info_type`, the type is passed in the after-end byte of a string passed with its length to
+    // `__std_tzdb_get_sys_info`. Since older object files always pass the `.c_str()` of a `std::string`
+    // to that function, the after-end byte will always be '\0'.
+    _Full = '\0',
+    _Offset_only,
+    _Offset_and_range,
 };
 
 _NODISCARD __std_tzdb_time_zones_info* __stdcall __std_tzdb_get_time_zones() noexcept;
@@ -141,6 +150,11 @@ public:
 
     void deallocate(_Ty* const _Ptr, size_t) noexcept {
         __std_free_crt(_Ptr);
+    }
+
+    template <class _Other>
+    _NODISCARD bool operator==(const _Crt_allocator<_Other>&) const noexcept {
+        return true;
     }
 };
 

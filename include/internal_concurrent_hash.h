@@ -119,9 +119,9 @@ public:
 
     typedef typename _Al_traits::template rebind_traits<_Full_iterator> _Alfi_traits;
 
-    static const size_type _Initial_bucket_number = 8;                               // Initial number of buckets
-    static const size_type _Initial_bucket_load = 4;                                 // Initial maximum number of elements per bucket
-    static size_type const _Pointers_per_table = sizeof(size_type) * 8;              // One bucket segment per bit
+    static constexpr size_type _Initial_bucket_number = 8;                               // Initial number of buckets
+    static constexpr size_type _Initial_bucket_load = 4;                                 // Initial maximum number of elements per bucket
+    static constexpr size_type _Pointers_per_table = sizeof(size_type) * 8;              // One bucket segment per bit
 
     // Constructors/Destructors
     _Concurrent_hash(size_type _Number_of_buckets = _Initial_bucket_number, const _Key_compare& _Parg = _Key_compare(), const allocator_type& _Allocator = allocator_type())
@@ -428,7 +428,8 @@ public:
     {
         if (this != &_Right)
         {
-            ::std::_Swap_adl(this->_M_comparator, _Right._M_comparator);
+            using ::std::swap;
+            swap(this->_M_comparator, _Right._M_comparator); // intentional ADL
             _M_split_ordered_list.swap(_Right._M_split_ordered_list);
             _Swap_buckets(_Right);
             ::std::swap(_M_number_of_buckets, _Right._M_number_of_buckets);

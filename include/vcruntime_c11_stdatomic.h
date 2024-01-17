@@ -78,7 +78,7 @@ typedef _Atomic(uintmax_t) atomic_uintmax_t;
 #define atomic_thread_fence(_Order) _Atomic_thread_fence(_Order)
 #define atomic_signal_fence(_Order) _Atomic_signal_fence(_Order)
 
-#define atomic_is_lock_free(_Obj) _Atomic_is_lock_free(sizeof *(_Obj))
+#define atomic_is_lock_free(_Obj) _Atomic_is_lock_free(sizeof(__typeof_unqual__(*(_Obj))))
 
 #define atomic_store(_Obj, _Desired) __c11_atomic_store(_Obj, _Desired, _Atomic_memory_order_seq_cst)
 #define atomic_store_explicit        __c11_atomic_store

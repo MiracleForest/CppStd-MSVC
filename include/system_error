@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _SYSTEM_ERROR_
 #define _SYSTEM_ERROR_
 #include <yvals.h>
@@ -16,7 +15,7 @@
 #include <xerrc.h>
 #ifndef _M_CEE_PURE
 #include <atomic>
-#endif // _M_CEE_PURE
+#endif // !defined(_M_CEE_PURE)
 
 #if _HAS_CXX20
 #include <compare>
@@ -28,6 +27,12 @@
 _STL_DISABLE_CLANG_WARNINGS
 #pragma push_macro("new")
 #undef new
+
+// TRANSITION, non-_Ugly attribute tokens
+#pragma push_macro("msvc")
+#pragma push_macro("noop_dtor")
+#undef msvc
+#undef noop_dtor
 
 _STD_BEGIN
 _EXPORT_STD enum class io_errc { // error codes for ios_base::failure
@@ -54,10 +59,11 @@ _INLINE_VAR constexpr bool is_error_condition_enum_v = is_error_condition_enum<_
 
 _EXPORT_STD class error_code;
 _EXPORT_STD class error_condition;
-_EXPORT_STD _NODISCARD error_code make_error_code(errc) noexcept;
-_EXPORT_STD _NODISCARD error_code make_error_code(io_errc) noexcept;
-_EXPORT_STD _NODISCARD error_condition make_error_condition(errc) noexcept;
-_EXPORT_STD _NODISCARD error_condition make_error_condition(io_errc) noexcept;
+
+namespace _Ensure_adl {
+    void make_error_code()      = delete;
+    void make_error_condition() = delete;
+} // namespace _Ensure_adl
 
 _EXPORT_STD class error_category;
 
@@ -168,7 +174,8 @@ public:
 
     template <class _Enum, enable_if_t<is_error_code_enum_v<_Enum>, int> = 0>
     error_code(_Enum _Errcode) noexcept : _Myval(0), _Mycat(nullptr) {
-        *this = make_error_code(_Errcode); // using ADL
+        using _Ensure_adl::make_error_code;
+        *this = make_error_code(_Errcode); // intentional ADL
     }
 
     void assign(int _Val, const error_category& _Cat) noexcept {
@@ -178,7 +185,8 @@ public:
 
     template <class _Enum, enable_if_t<is_error_code_enum_v<_Enum>, int> = 0>
     error_code& operator=(_Enum _Errcode) noexcept {
-        *this = make_error_code(_Errcode); // using ADL
+        using _Ensure_adl::make_error_code;
+        *this = make_error_code(_Errcode); // intentional ADL
         return *this;
     }
 
@@ -259,7 +267,8 @@ public:
 
     template <class _Enum, enable_if_t<is_error_condition_enum_v<_Enum>, int> = 0>
     error_condition(_Enum _Errcode) noexcept : _Myval(0), _Mycat(nullptr) {
-        *this = make_error_condition(_Errcode); // using ADL
+        using _Ensure_adl::make_error_condition;
+        *this = make_error_condition(_Errcode); // intentional ADL
     }
 
     void assign(int _Val, const error_category& _Cat) noexcept {
@@ -269,7 +278,8 @@ public:
 
     template <class _Enum, enable_if_t<is_error_condition_enum_v<_Enum>, int> = 0>
     error_condition& operator=(_Enum _Errcode) noexcept {
-        *this = make_error_condition(_Errcode); // using ADL
+        using _Ensure_adl::make_error_condition;
+        *this = make_error_condition(_Errcode); // intentional ADL
         return *this;
     }
 
@@ -339,7 +349,7 @@ private:
 _NODISCARD inline bool _System_error_equal(const error_code& _Left, const error_condition& _Right) noexcept {
     return _Left.category().equivalent(_Left.value(), _Right) || _Right.category().equivalent(_Left, _Right.value());
 }
-#else // ^^^ _STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS // !_STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS vvv
+#else // ^^^ _STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS / !_STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS vvv
 _EXPORT_STD _NODISCARD inline bool operator==(const error_code& _Left, const error_code& _Right) noexcept {
     return _Left.category() == _Right.category() && _Left.value() == _Right.value();
 }
@@ -400,7 +410,7 @@ _NODISCARD inline bool operator!=(const error_condition& _Left, const error_cond
     return !(_Left == _Right);
 }
 #endif // !_HAS_CXX20
-#endif // _STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS
+#endif // ^^^ !_STL_OPTIMIZE_SYSTEM_ERROR_OPERATORS ^^^
 
 _NODISCARD inline error_condition error_category::default_error_condition(int _Errval) const noexcept {
     // make error_condition for error code
@@ -468,6 +478,8 @@ private:
     }
 
 protected:
+    _System_error(error_code _Errcode) : runtime_error(_Errcode.message()), _Mycode(_Errcode) {}
+
     _System_error(error_code _Errcode, const string& _Message)
         : runtime_error(_Makestr(_Errcode, _Message)), _Mycode(_Errcode) {}
 
@@ -479,13 +491,13 @@ private:
     using _Mybase = _System_error;
 
 public:
-    system_error(error_code _Errcode) : _Mybase(_Errcode, "") {}
+    system_error(error_code _Errcode) : _Mybase(_Errcode) {}
 
     system_error(error_code _Errcode, const string& _Message) : _Mybase(_Errcode, _Message) {}
 
     system_error(error_code _Errcode, const char* _Message) : _Mybase(_Errcode, _Message) {}
 
-    system_error(int _Errval, const error_category& _Errcat) : _Mybase(error_code(_Errval, _Errcat), "") {}
+    system_error(int _Errval, const error_category& _Errcat) : _Mybase(error_code(_Errval, _Errcat)) {}
 
     system_error(int _Errval, const error_category& _Errcat, const string& _Message)
         : _Mybase(error_code(_Errval, _Errcat), _Message) {}
@@ -574,7 +586,8 @@ public:
             constexpr size_t _Unknown_error_length = sizeof(_Unknown_error) - 1; // TRANSITION, DevCom-906503
             return string{_Unknown_error, _Unknown_error_length};
         } else {
-            return string{_Msg._Str, _Msg._Length};
+            _STL_INTERNAL_CHECK(_Msg._Str != nullptr);
+            return string{_Msg._Str, _Msg._Length}; // lgtm [cpp/uninitializedptrfield]
         }
     }
 
@@ -638,10 +651,10 @@ _NODISCARD const _Ty& _Immortalize_memcpy_image() noexcept {
 #elif defined(__clang__)
 template <class _Ty>
 _NODISCARD const _Ty& _Immortalize_memcpy_image() noexcept {
-    [[clang::require_constant_initialization]] static _Ty _Static;
+    [[_Clang::__require_constant_initialization__]] static _Ty _Static;
     return _Static;
 }
-#elif !defined(_M_CEE) // TRANSITION, VSO-1153256
+#elif !defined(_M_CEE)
 template <class _Ty>
 struct _Constexpr_immortalize_impl {
     union {
@@ -663,7 +676,7 @@ _NODISCARD const _Ty& _Immortalize_memcpy_image() noexcept {
     static _Constexpr_immortalize_impl<_Ty> _Static;
     return _Static._Storage;
 }
-#else // ^^^ no workaround / workaround vvv
+#else // ^^^ !defined(_M_CEE) / defined(_M_CEE), TRANSITION, VSO-1153256 vvv
 template <class _Ty>
 _NODISCARD const _Ty& _Immortalize_memcpy_image() noexcept {
     // return reference to a memcpy'd default-initialized _Ty
@@ -682,7 +695,7 @@ _NODISCARD const _Ty& _Immortalize_memcpy_image() noexcept {
     _Storage[0].store(_Target_iter[0], memory_order_release);
     return reinterpret_cast<_Ty&>(_Storage);
 }
-#endif // choose immortalize strategy
+#endif // ^^^ defined(_M_CEE), TRANSITION, VSO-1153256 ^^^
 
 _EXPORT_STD _NODISCARD inline const error_category& generic_category() noexcept {
     return _Immortalize_memcpy_image<_Generic_error_category>();
@@ -696,6 +709,34 @@ _EXPORT_STD _NODISCARD inline const error_category& system_category() noexcept {
     return _Immortalize_memcpy_image<_System_error_category>();
 }
 _STD_END
+
+#if _HAS_CXX17
+_EXTERN_C
+enum class __std_win_error : unsigned long;
+_END_EXTERN_C
+
+_STD_BEGIN
+// We would really love to use the proper way of building error_code by specializing
+// is_error_code_enum and make_error_code for __std_win_error, but because:
+//   1. We would like to keep the definition of __std_win_error in xfilesystem_abi.h
+//   2. and xfilesystem_abi.h cannot include <system_error>
+//   3. and specialization of is_error_code_enum and overload of make_error_code
+//      need to be kept together with the enum (see limerick in N4950 [temp.expl.spec]/8)
+// we resort to using this _Make_ec helper.
+_NODISCARD inline error_code _Make_ec(__std_win_error _Errno) noexcept { // make an error_code
+    return {static_cast<int>(_Errno), _STD system_category()};
+}
+
+[[noreturn]] inline void _Throw_system_error_from_std_win_error(const __std_win_error _Errno) {
+    _THROW(system_error{_Make_ec(_Errno)});
+}
+_STD_END
+#endif // _HAS_CXX17
+
+// TRANSITION, non-_Ugly attribute tokens
+#pragma pop_macro("noop_dtor")
+#pragma pop_macro("msvc")
+
 #pragma pop_macro("new")
 _STL_RESTORE_CLANG_WARNINGS
 #pragma warning(pop)

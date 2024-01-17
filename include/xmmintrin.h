@@ -23,11 +23,11 @@
 
 #pragma once
 
-#if !defined(_M_IX86) && !defined(_M_X64)
-#error This header is specific to X86, X64 and ARM64EC targets
+#if !defined(_M_IX86) && !defined(_M_X64) && !(defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
+#error This header is specific to X86, X64, ARM64, and ARM64EC targets
 #endif
 
-#if defined(_M_ARM64EC) && !defined(__INTRIN_H_)
+#if (defined(_M_ARM64) || defined(_M_ARM64EC)) && !defined(__INTRIN_H_)
 #error this header should only be included through <intrin.h>
 #endif
 
@@ -125,7 +125,12 @@ typedef union __declspec(intrin_type) __declspec(align(16)) __m128 {
 #define _MM_HINT_T1     2
 #define _MM_HINT_T2     3
 #define _MM_HINT_ENTA   4
-// The values below are not yet supported.
+/* code prefix constants */
+#if defined (_M_X64)
+#define _MM_HINT_IT0    7
+#define _MM_HINT_IT1    6
+#endif  /* defined (_M_X64) */
+// The values below were previously defined but not supported.
 //#define _MM_HINT_ET0    5
 //#define _MM_HINT_ET1    6
 //#define _MM_HINT_ET2    7
@@ -188,6 +193,12 @@ typedef union __declspec(intrin_type) __declspec(align(16)) __m128 {
 extern "C" { /* Begin "C" */
   /* Intrinsics use C name-mangling. */
 #endif  /* defined __cplusplus */
+
+// Suppress C28251: Inconsistent annotation for prior declaration.
+// Depending on the include order the definition may not exist so
+// _Use_decl_annotations_ can not be used. 
+#pragma warning(push)
+#pragma warning(disable: 28251)
 
 /*
  * FP, arithmetic
@@ -344,6 +355,10 @@ extern void _mm_store_ps(float *_V, __m128 _A);
 extern void _mm_storer_ps(float *_V, __m128 _A);
 extern void _mm_storeu_ps(float *_V, __m128 _A);
 extern void _mm_prefetch(char const*_A, int _Sel);
+#if defined (_M_X64)
+extern void _m_prefetchit0(const void *);
+extern void _m_prefetchit1(const void *);
+#endif  /* defined (_M_X64) */
 #if defined(_M_IX86)
 extern void _mm_stream_pi(__m64 *, __m64);
 #endif
@@ -507,6 +522,7 @@ __inline __m128 _mm_cvtpi32x2_ps(__m64 _A, __m64 _B)
 #pragma warning(pop)
 #endif // _M_IX86
 
+#pragma warning(pop) // disable: 28251
 
 #if defined __cplusplus
 }; /* End "C" */

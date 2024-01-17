@@ -29,8 +29,8 @@ struct __std_exception_data
 };
 
 _VCRTIMP void __cdecl __std_exception_copy(
-    _In_  __std_exception_data const* _From,
-    _Out_ __std_exception_data*       _To
+    _In_    __std_exception_data const* _From,
+    _Inout_ __std_exception_data*       _To
     );
 
 _VCRTIMP void __cdecl __std_exception_destroy(

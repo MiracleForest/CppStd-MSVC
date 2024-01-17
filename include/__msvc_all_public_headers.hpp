@@ -22,7 +22,7 @@
 // VSO-768746: mbctype.h macroizes _MS, _MP, _M1, and _M2. Include it first for test coverage.
 #ifndef _MSVC_TESTING_NVCC
 #include <mbctype.h>
-#endif // _MSVC_TESTING_NVCC
+#endif // !defined(_MSVC_TESTING_NVCC)
 
 #if 1 // TRANSITION, OS-17090155 (UCRT)
 #define _CRT_DECLARE_NONSTDC_NAMES 0
@@ -30,7 +30,7 @@
 #include <sys/stat.h>
 #include <sys/timeb.h>
 #include <sys/utime.h>
-#endif // _MSVC_TESTING_NVCC
+#endif // !defined(_MSVC_TESTING_NVCC)
 #undef _CRT_DECLARE_NONSTDC_NAMES
 #endif // TRANSITION, OS-17090155 (UCRT)
 
@@ -49,6 +49,7 @@
 #include <numbers>
 #include <ratio>
 #include <source_location>
+#include <stdfloat>
 #include <tuple>
 #include <type_traits>
 #include <utility>
@@ -106,12 +107,14 @@
 #include <list>
 #include <locale>
 #include <map>
+#include <mdspan>
 #include <memory>
 #include <memory_resource>
 #include <new>
 #include <numeric>
 #include <optional>
 #include <ostream>
+#include <print>
 #include <queue>
 #include <random>
 #include <ranges>
@@ -142,19 +145,16 @@
 #include <__msvc_cxx_stdatomic.hpp>
 #include <atomic>
 #include <barrier>
-#include <latch>
-#include <semaphore>
-#include <stop_token>
-#endif // _M_CEE_PURE
-
-#ifndef _M_CEE
 #include <condition_variable>
 #include <execution>
 #include <future>
+#include <latch>
 #include <mutex>
+#include <semaphore>
 #include <shared_mutex>
+#include <stop_token>
 #include <thread>
-#endif // _M_CEE
+#endif // !defined(_M_CEE_PURE)
 
 // Non-Core C Wrapper Headers
 #include <ccomplex>
@@ -176,7 +176,7 @@
 #include <experimental/unordered_set>
 #include <experimental/vector>
 
-#endif // _CORE_HEADERS_ONLY
+#endif // !defined(_CORE_HEADERS_ONLY)
 
 #ifndef _MSVC_TESTING_NVCC
 #include <assert.h>
@@ -229,12 +229,12 @@
 #ifndef _CORE_HEADERS_ONLY
 #include <complex.h>
 #include <new.h>
-#endif // _CORE_HEADERS_ONLY
+#endif // !defined(_CORE_HEADERS_ONLY)
 
 #ifndef _M_CEE_PURE
 #include <fpieee.h>
-#endif // _M_CEE_PURE
-#endif // _MSVC_TESTING_NVCC
+#endif // !defined(_M_CEE_PURE)
+#endif // !defined(_MSVC_TESTING_NVCC)
 
 #if !(defined(__CUDACC__) && defined(__clang__))
 #pragma pop_macro("new")

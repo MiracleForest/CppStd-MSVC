@@ -707,13 +707,21 @@ extern __mmask8 _mm512_mask_cmpunord_pd_mask(__mmask8, __m512d, __m512d);
 
 extern __m512i __cdecl _mm512_setzero_si512(void);
 
-extern __m512i __cdecl _mm512_set_epi8(char /* e63 */, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char /* e0 */);
-extern __m512i __cdecl _mm512_set_epi16(short /* e31 */, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short /* e0 */);
+extern __m512i __cdecl _mm512_set_epi8(char /* e63 */, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                       char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                       char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                       char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char /* e0 */);
+extern __m512i __cdecl _mm512_set_epi16(short /* e31 */, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short,
+                                        short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short /* e0 */);
 extern __m512i __cdecl _mm512_set_epi32(int /* e15 */, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int /* e0 */);
 extern __m512i __cdecl _mm512_set_epi64(__int64 /* e7 */, __int64, __int64, __int64, __int64, __int64, __int64, __int64 /* e0 */);
 
-extern __m512i __cdecl _mm512_setr_epi8(char /* e0 */, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char /* e63 */);
-extern __m512i __cdecl _mm512_setr_epi16(short /* e0 */, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short /* e31 */);
+extern __m512i __cdecl _mm512_setr_epi8(char /* e0 */, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                        char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                        char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char,
+                                        char, char, char, char, char, char, char, char, char, char, char, char, char, char, char, char /* e63 */);
+extern __m512i __cdecl _mm512_setr_epi16(short /* e0 */, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short,
+                                         short, short, short, short, short, short, short, short, short, short, short, short, short, short, short, short /* e31 */);
 extern __m512i __cdecl _mm512_setr_epi32(int /* e0 */, int, int, int, int, int, int, int, int, int, int, int, int, int, int, int /* e15 */);
 extern __m512i __cdecl _mm512_setr_epi64(__int64 /* e0 */, __int64, __int64, __int64, __int64, __int64, __int64, __int64 /* e7 */);
 
@@ -5156,10 +5164,15 @@ extern void __cdecl _tile_stored(__tile src, void *base, int stride);
 extern void __cdecl _tile_zero(__tile dst);
 
 extern void __cdecl _tile_dpbf16ps(__tile dst, __tile src1, __tile src2);
+extern void __cdecl _tile_dpfp16ps(__tile dst, __tile src1, __tile src2);
 extern void __cdecl _tile_dpbssd(__tile dst, __tile src1, __tile src2);
 extern void __cdecl _tile_dpbsud(__tile dst, __tile src1, __tile src2);
 extern void __cdecl _tile_dpbusd(__tile dst, __tile src1, __tile src2);
 extern void __cdecl _tile_dpbuud(__tile dst, __tile src1, __tile src2);
+
+// AMX-COMPLEX
+extern void __cdecl _tile_cmmimfp16ps(__tile dst, __tile src1, __tile src2);
+extern void __cdecl _tile_cmmrlfp16ps(__tile dst, __tile src1, __tile src2);
 
 #endif  /* defined (_M_X64) */
 
@@ -5426,9 +5439,9 @@ extern __m128h __cdecl _mm_cvt_roundi32_sh(__m128h, int, int);
 extern __m128h __cdecl _mm_cvt_roundi64_sh(__m128h, __int64, int);
 
 // VCVTSS2SH
-extern __m128h __cdecl _mm_cvtss_sh(__m128h, __m128, const int);
-extern __m128h __cdecl _mm_mask_cvtss_sh(__m128h, __mmask8, __m128h, __m128, const int);
-extern __m128h __cdecl _mm_maskz_cvtss_sh(__mmask8, __m128h, __m128, const int);
+//extern __m128h __cdecl _mm_cvtss_sh(__m128h, __m128);
+//extern __m128h __cdecl _mm_mask_cvtss_sh(__m128h, __mmask8, __m128h, __m128);
+//extern __m128h __cdecl _mm_maskz_cvtss_sh(__mmask8, __m128h, __m128);
 extern __m128h __cdecl _mm_cvt_roundss_sh(__m128h, __m128, const int);
 extern __m128h __cdecl _mm_mask_cvt_roundss_sh(__m128h, __mmask8, __m128h, __m128, const int);
 extern __m128h __cdecl _mm_maskz_cvt_roundss_sh(__mmask8, __m128h, __m128, const int);
@@ -5706,9 +5719,11 @@ extern __m128h __cdecl _mm_mask3_fcmadd_round_sch(__m128h, __m128h, __m128h, __m
 extern __m128h __cdecl _mm_maskz_fcmadd_round_sch(__mmask8, __m128h, __m128h, __m128h, const int);
 extern __m128h __cdecl _mm_fmadd_sch(__m128h, __m128h, __m128h);
 extern __m128h __cdecl _mm_mask_fmadd_sch(__m128h, __mmask8, __m128h, __m128h);
+extern __m128h __cdecl _mm_mask3_fmadd_sch(__m128h, __m128h, __m128h, __mmask8);
 extern __m128h __cdecl _mm_maskz_fmadd_sch(__mmask8, __m128h, __m128h, __m128h);
 extern __m128h __cdecl _mm_fmadd_round_sch(__m128h, __m128h, __m128h, const int);
 extern __m128h __cdecl _mm_mask_fmadd_round_sch(__m128h, __mmask8, __m128h, __m128h, const int);
+extern __m128h __cdecl _mm_mask3_fmadd_round_sch(__m128h, __m128h, __m128h, __mmask8, const int);
 extern __m128h __cdecl _mm_maskz_fmadd_round_sch(__mmask8, __m128h, __m128h, __m128h, const int);
 
 // VF[,C]MULCPH
@@ -6125,6 +6140,20 @@ extern __m128h __cdecl _mm_mask_blend_ph (__mmask8, __m128h, __m128h);
 extern __m256h __cdecl _mm256_mask_blend_ph (__mmask16, __m256h, __m256h);
 extern __m512h __cdecl _mm512_mask_blend_ph (__mmask32, __m512h, __m512h);
 
+// AVX512VL RSQRT14 intrinsics
+extern __m256  __cdecl _mm256_rsqrt14_ps(__m256);
+extern __m256d __cdecl _mm256_rsqrt14_pd(__m256d);
+extern __m128  __cdecl _mm_rsqrt14_ps(__m128);
+extern __m128d __cdecl _mm_rsqrt14_pd(__m128d);
+
+// Scalar FP intrinsics (with double/float arguments) 
+extern float  __cdecl __getexp_ss(float);
+extern double __cdecl __getexp_sd(double);
+extern float  __cdecl __getmant_ss(float, _MM_MANTISSA_NORM_ENUM, _MM_MANTISSA_SIGN_ENUM);
+extern double __cdecl __getmant_sd(double, _MM_MANTISSA_NORM_ENUM, _MM_MANTISSA_SIGN_ENUM);
+extern float  __cdecl __scalef_ss(float, float);
+extern double __cdecl __scalef_sd(double, double);
+
 // Macros for fmul_*ch intrinsics
 #define _mm_mul_pch(A, B) _mm_fmul_pch(A, B)
 #define _mm_mask_mul_pch(W, U, A, B) _mm_mask_fmul_pch(W, U, A, B)
@@ -6224,6 +6253,55 @@ extern __m512h __cdecl _mm512_mask_blend_ph (__mmask32, __m512h, __m512h);
 #define _mm_ucomigt_sh(v1, v2)  _mm_comi_sh((v1), (v2), _CMP_GT_OS)
 #define _mm_ucomige_sh(v1, v2)  _mm_comi_sh((v1), (v2), _CMP_GE_OS)
 #define _mm_ucomineq_sh(v1, v2) _mm_comi_sh((v1), (v2), _CMP_NEQ_OS)
+
+// FP16 intrinsic macros
+#define _mm_abs_ph(a)                    _mm_and_epi32(_mm_set1_epi32(0x7FFF7FFF), (a))
+#define _mm256_abs_ph(a)                 _mm256_and_epi32(_mm256_set1_epi32(0x7FFF7FFF), (a))
+#define _mm512_abs_ph(a)                 _mm512_and_epi32(_mm512_set1_epi32(0x7FFF7FFF), (a))
+
+#define _mm_conj_pch(a)                  _mm_xor_epi32((a), _mm_set1_epi32(0x80000000))
+#define _mm_mask_conj_pch(src, k, a)     _mm_mask_xor_epi32((src), (k), (a), _mm_set1_epi32(0x80000000))
+#define _mm_maskz_conj_pch(k, a)         _mm_maskz_xor_epi32((k), (a), _mm_set1_epi32(0x80000000))
+
+#define _mm256_conj_pch(a)               _mm256_xor_epi32((a), _mm256_set1_epi32(0x80000000))
+#define _mm256_mask_conj_pch(src, k, a)  _mm256_mask_xor_epi32((src), (k), (a), _mm256_set1_epi32(0x80000000))
+#define _mm256_maskz_conj_pch(k, a)      _mm256_maskz_xor_epi32((k), (a), _mm256_set1_epi32(0x80000000))
+
+#define _mm512_conj_pch(a)               _mm512_xor_epi32((a), _mm512_set1_epi32(0x80000000))
+#define _mm512_mask_conj_pch(src, k, a)  _mm512_mask_xor_epi32((src), (k), (a), _mm512_set1_epi32(0x80000000))
+#define _mm512_maskz_conj_pch(k, a)      _mm512_maskz_xor_epi32((k), (a), _mm512_set1_epi32(0x80000000))
+
+#define _mm_load_ph(x)                   _mm_castps_ph(_mm_load_ps((float *)(x)))
+#define _mm256_load_ph(x)                _mm256_castps_ph(_mm256_load_ps((float *)(x)))
+#define _mm512_load_ph(x)                _mm512_castps_ph(_mm512_load_ps(x))
+
+#define _mm_loadu_ph(x)                  _mm_castps_ph(_mm_loadu_ps((float *)(x)))
+#define _mm256_loadu_ph(x)               _mm256_castps_ph(_mm256_loadu_ps((float *)(x)))
+#define _mm512_loadu_ph(x)               _mm512_castps_ph(_mm512_loadu_ps(x))
+
+#define _mm_store_ph(x, a)               _mm_store_ps((float *)(x), _mm_castph_ps(a))
+#define _mm256_store_ph(x, a)            _mm256_store_ps((float *)(x), _mm256_castph_ps(a))
+#define _mm512_store_ph(x, a)            _mm512_store_ps((x), _mm512_castph_ps(a))
+
+#define _mm_storeu_ph(x, a)              _mm_storeu_ps((float *)(x), _mm_castph_ps(a))
+#define _mm256_storeu_ph(x, a)           _mm256_storeu_ps((float *)(x), _mm256_castph_ps(a))
+#define _mm512_storeu_ph(x, a)           _mm512_storeu_ps((x), _mm512_castph_ps(a))
+
+#define _mm_setzero_ph()                 _mm_castps_ph(_mm_setzero_ps())
+#define _mm256_setzero_ph()              _mm256_castps_ph(_mm256_setzero_ps())
+#define _mm512_setzero_ph()              _mm512_castps_ph(_mm512_setzero_ps())
+
+#define _mm_undefined_ph()               _mm_undefined_si128()
+#define _mm256_undefined_ph()            _mm256_undefined_si256()
+#define _mm512_undefined_ph()            _mm512_undefined_epi32()
+
+#define _mm_permutex2var_ph(a, i, b)     _mm_permutex2var_epi16((a), (i), (b))
+#define _mm256_permutex2var_ph(a, i, b)  _mm256_permutex2var_epi16((a), (i), (b))
+#define _mm512_permutex2var_ph(a, i, b)  _mm512_permutex2var_epi16((a), (i), (b))
+
+#define _mm_permutexvar_ph(i, a)         _mm_permutexvar_epi16((i), (a))
+#define _mm256_permutexvar_ph(i, a)      _mm256_permutexvar_epi16((i), (a))
+#define _mm512_permutexvar_ph(i, a)      _mm512_permutexvar_epi16((i), (a))
 
 #ifdef __cplusplus
 }

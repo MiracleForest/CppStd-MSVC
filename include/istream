@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _ISTREAM_
 #define _ISTREAM_
 #include <yvals_core.h>
@@ -37,9 +36,7 @@ public:
     }
 #endif // defined(__FORCE_INSTANCE)
 
-    explicit __CLR_OR_THIS_CALL basic_istream(_Mysb* _Strbuf, bool _Isstd = false)
-
-        : _Chcount(0) {
+    explicit __CLR_OR_THIS_CALL basic_istream(_Mysb* _Strbuf, bool _Isstd = false) : _Chcount(0) {
         _Myios::init(_Strbuf, _Isstd);
     }
 
@@ -48,18 +45,18 @@ public:
     }
 
 protected:
-    __CLR_OR_THIS_CALL basic_istream(basic_istream&& _Right) : _Chcount(_Right._Chcount) {
+    __CLR_OR_THIS_CALL basic_istream(basic_istream&& _Right) noexcept(false) : _Chcount(_Right._Chcount) {
         _Myios::init();
         _Myios::move(_STD move(_Right));
         _Right._Chcount = 0;
     }
 
-    basic_istream& __CLR_OR_THIS_CALL operator=(basic_istream&& _Right) {
+    basic_istream& __CLR_OR_THIS_CALL operator=(basic_istream&& _Right) noexcept /* strengthened */ {
         this->swap(_Right);
         return *this;
     }
 
-    void __CLR_OR_THIS_CALL swap(basic_istream& _Right) {
+    void __CLR_OR_THIS_CALL swap(basic_istream& _Right) noexcept /* strengthened */ {
         _Myios::swap(_Right);
         _STD swap(_Chcount, _Right._Chcount);
     }
@@ -149,12 +146,13 @@ public:
     }
 
     // TRANSITION, ABI: non-Standard ipfx() is preserved for binary compatibility
-    bool __CLR_OR_THIS_CALL ipfx(bool _Noskip = false) { // test stream state and skip whitespace as needed
+    _DEPRECATE_IO_PFX_SFX bool __CLR_OR_THIS_CALL ipfx(bool _Noskip = false) {
+        // test stream state and skip whitespace as needed
         return _Ipfx(_Noskip);
     }
 
     // TRANSITION, ABI: non-Standard isfx() is preserved for binary compatibility
-    void __CLR_OR_THIS_CALL isfx() {} // perform any wrapup
+    _DEPRECATE_IO_PFX_SFX void __CLR_OR_THIS_CALL isfx() {} // perform any wrapup
 
 #ifdef _M_CEE_PURE
     basic_istream& __CLR_OR_THIS_CALL operator>>(basic_istream&(__clrcall* _Pfn)(basic_istream&) ) {
@@ -171,7 +169,7 @@ public:
         _Pfn(*this);
         return *this;
     }
-#endif // _M_CEE_PURE
+#endif // defined(_M_CEE_PURE)
 
     basic_istream& __CLR_OR_THIS_CALL operator>>(basic_istream&(__cdecl* _Pfn)(basic_istream&) ) {
         // call basic_istream manipulator
@@ -205,7 +203,7 @@ private:
     }
 
     template <class = void>
-    void _Increment_gcount() {
+    void _Increment_gcount() noexcept {
         if (_Chcount != (numeric_limits<streamsize>::max)()) {
             ++_Chcount;
         }
@@ -605,7 +603,8 @@ public:
         return *this;
     }
 
-    _NODISCARD streamsize __CLR_OR_THIS_CALL gcount() const { // get count from last extraction
+    _NODISCARD streamsize __CLR_OR_THIS_CALL gcount() const noexcept /* strengthened */ {
+        // get count from last extraction
         return _Chcount;
     }
 
@@ -681,11 +680,11 @@ public:
             _CATCH_IO_END
         }
 
-        return pos_type(-1);
+        return pos_type{off_type{-1}};
     }
 
 private:
-    streamsize _Chcount; // the character count
+    streamsize _Chcount{}; // the character count
 };
 
 #pragma vtordisp(pop) // compiler bug workaround
@@ -707,7 +706,7 @@ inline basic_istream<unsigned short, char_traits<unsigned short>>& __CLR_OR_THIS
     char_traits<unsigned short>>::operator>>(unsigned short& _Ch) { // extract a character
     return _STD operator>>(*this, _Ch);
 }
-#endif // _NATIVE_WCHAR_T_DEFINED
+#endif // !defined(_NATIVE_WCHAR_T_DEFINED)
 
 #if defined(_DLL_CPPLIB)
 
@@ -718,7 +717,7 @@ template class _CRTIMP2_PURE_IMPORT basic_istream<wchar_t, char_traits<wchar_t>>
 
 #ifdef __FORCE_INSTANCE
 template class _CRTIMP2_PURE_IMPORT basic_istream<unsigned short, char_traits<unsigned short>>;
-#endif // __FORCE_INSTANCE
+#endif // defined(__FORCE_INSTANCE)
 #endif // defined(_DLL_CPPLIB)
 
 _EXPORT_STD extern "C++" template <class _Elem, class _Traits>
@@ -738,17 +737,18 @@ public:
         : _Myis(_Strbuf, false), _Myos(_Noinit, false) {}
 
 protected:
-    __CLR_OR_THIS_CALL basic_iostream(basic_iostream&& _Right) : _Myis(_Right.rdbuf(), false), _Myos(_Noinit, false) {
+    __CLR_OR_THIS_CALL basic_iostream(basic_iostream&& _Right) noexcept(false)
+        : _Myis(_Right.rdbuf(), false), _Myos(_Noinit, false) {
         _Myios::init();
         _Myios::move(_STD move(_Right));
     }
 
-    basic_iostream& __CLR_OR_THIS_CALL operator=(basic_iostream&& _Right) {
+    basic_iostream& __CLR_OR_THIS_CALL operator=(basic_iostream&& _Right) noexcept /* strengthened */ {
         this->swap(_Right);
         return *this;
     }
 
-    void __CLR_OR_THIS_CALL swap(basic_iostream& _Right) {
+    void __CLR_OR_THIS_CALL swap(basic_iostream& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Myios::swap(_Right);
         }
@@ -770,7 +770,7 @@ template class _CRTIMP2_PURE_IMPORT basic_iostream<wchar_t, char_traits<wchar_t>
 
 #ifdef __FORCE_INSTANCE
 template class _CRTIMP2_PURE_IMPORT basic_iostream<unsigned short, char_traits<unsigned short>>;
-#endif // __FORCE_INSTANCE
+#endif // defined(__FORCE_INSTANCE)
 #endif // defined(_DLL_CPPLIB)
 
 template <class _Elem, class _Traits>
@@ -838,7 +838,7 @@ basic_istream<char, _Traits>& operator>>(
     return _Istream_extract_into_buffer(_Istr, _Size, reinterpret_cast<char*>(_Str));
 }
 #pragma warning(pop)
-#else // _HAS_CXX20
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
 template <class _Elem, class _Traits>
 basic_istream<_Elem, _Traits>& operator>>(basic_istream<_Elem, _Traits>& _Istr, _Elem* _Str) {
     return _Istream_extract_into_buffer(_Istr, SIZE_MAX, _Str);
@@ -853,7 +853,7 @@ template <class _Traits>
 basic_istream<char, _Traits>& operator>>(basic_istream<char, _Traits>& _Istr, unsigned char* _Str) {
     return _Istream_extract_into_buffer(_Istr, SIZE_MAX, reinterpret_cast<char*>(_Str));
 }
-#endif // _HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
 
 _EXPORT_STD template <class _Elem, class _Traits>
 basic_istream<_Elem, _Traits>& operator>>(basic_istream<_Elem, _Traits>& _Istr, _Elem& _Ch) { // extract a character

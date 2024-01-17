@@ -178,11 +178,11 @@ namespace details
         friend struct _Micro_queue;
 
         // Approximately n_queue/golden ratio
-        static const size_t _Phi = 3;
+        static constexpr size_t _Phi = 3;
 
     public:
         // Must be power of 2
-        static const size_t _N_queue = 8;
+        static constexpr size_t _N_queue = 8;
 
         // Map ticket to an array index
         static size_t _Index( _Ticket _K )

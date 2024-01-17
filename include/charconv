@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _CHARCONV_
 #define _CHARCONV_
 #include <yvals.h>
@@ -13,12 +12,13 @@
 _EMIT_STL_WARNING(STL4038, "The contents of <charconv> are available only with C++17 or later.");
 #else // ^^^ !_HAS_CXX17 / _HAS_CXX17 vvv
 #include <cstring>
-#include <intrin0.h>
 #include <xbit_ops.h>
 #include <xcharconv.h>
 #include <xcharconv_ryu.h>
 #include <xcharconv_tables.h>
 #include <xutility>
+
+#include _STL_INTRIN_HEADER
 
 #pragma pack(push, _CRT_PACKING)
 #pragma warning(push, _STL_WARNING_LEVEL)
@@ -204,7 +204,6 @@ _EXPORT_STD _CONSTEXPR23 to_chars_result to_chars(char* const _First, char* cons
 
 _EXPORT_STD to_chars_result to_chars(char* _First, char* _Last, bool _Value, int _Base = 10) = delete;
 
-
 _EXPORT_STD struct from_chars_result {
     const char* ptr;
     errc ec;
@@ -253,7 +252,10 @@ _NODISCARD _CONSTEXPR23 from_chars_result _Integer_from_chars(
 
     constexpr _Unsigned _Uint_max    = static_cast<_Unsigned>(-1);
     constexpr _Unsigned _Int_max     = static_cast<_Unsigned>(_Uint_max >> 1);
+#pragma warning(push)
+#pragma warning(disable : 26450) // TRANSITION, VSO-1828677
     constexpr _Unsigned _Abs_int_min = static_cast<_Unsigned>(_Int_max + 1);
+#pragma warning(pop)
 
     _Unsigned _Risky_val;
     _Unsigned _Max_digit;
@@ -304,7 +306,7 @@ _NODISCARD _CONSTEXPR23 from_chars_result _Integer_from_chars(
         }
     }
 
-    _Raw_value = static_cast<_RawTy>(_Value); // implementation-defined for negative, N4713 7.8 [conv.integral]/3
+    _Raw_value = static_cast<_RawTy>(_Value); // congruent to _Value modulo 2^N for negative, N4950 [conv.integral]/3
 
     return {_Next, errc{}};
 }
@@ -369,30 +371,37 @@ _EXPORT_STD _CONSTEXPR23 from_chars_result from_chars(const char* const _First, 
 // array is not necessary: all operations on the _Big_integer_flt type are carefully written to only access elements at
 // indices [0, _Myused), and all operations correctly update _Myused as the utilized size increases.
 
-// _Big_integer_flt _Xval{}; is direct-list-initialization (N4750 11.6.4 [dcl.init.list]/1).
-// N4750 11.6.4 [dcl.init.list]/3.5:
+// _Big_integer_flt _Xval{}; is direct-list-initialization (N4950 [dcl.init.list]/1).
+// N4950 [dcl.init.list]/3.5:
 // "Otherwise, if the initializer list has no elements and T is a class type with a default constructor,
 // the object is value-initialized."
-// N4750 11.6 [dcl.init]/8, /8.1:
+// N4950 [dcl.init.general]/9, /9.1, /9.1.1:
 // "To value-initialize an object of type T means:
-// - if T is a (possibly cv-qualified) class type (Clause 12) with either no default constructor (15.1)
-// or a default constructor that is user-provided or deleted, then the object is default-initialized;"
-// N4750 11.6 [dcl.init]/7, /7.1:
+// - if T is a (possibly cv-qualified) class type ([class]), then
+//   - if T has either no default constructor ([class.default.ctor]) or a default constructor
+//   that is user-provided or deleted, then the object is default-initialized;"
+// N4950 [dcl.init.general]/7, /7.1:
 // "To default-initialize an object of type T means:
-// - If T is a (possibly cv-qualified) class type (Clause 12), constructors are considered. The applicable constructors
-// are enumerated (16.3.1.3), and the best one for the initializer () is chosen through overload resolution (16.3).
+// - If T is a (possibly cv-qualified) class type ([class]), constructors are considered. The applicable constructors
+// are enumerated ([over.match.ctor]), and the best one for the initializer () is chosen through overload resolution
+// ([over.match]).
 // The constructor thus selected is called, with an empty argument list, to initialize the object."
-// N4750 15.6.2 [class.base.init]/9, /9.3:
-// "In a non-delegating constructor, if a given potentially constructed subobject is not designated by a
-// mem-initializer-id (including the case where there is no mem-initializer-list because the constructor has no
-// ctor-initializer), then [...] - otherwise, the entity is default-initialized (11.6)."
-// N4750 11.6 [dcl.init]/7, /7.2, /7.3:
+// N4950 [class.base.init]/9, /9.3:
+// "In a non-delegating constructor other than an implicitly-defined copy/move constructor ([class.copy.ctor]),
+// if a given potentially constructed subobject is not designated by a mem-initializer-id (including the case
+// where there is no mem-initializer-list because the constructor has no ctor-initializer), then [...]
+// - otherwise, the entity is default-initialized ([dcl.init])."
+// N4950 [dcl.init.general]/7, /7.2, /7.3:
 // "To default-initialize an object of type T means: [...]
 // - If T is an array type, each element is default-initialized.
 // - Otherwise, no initialization is performed."
 // Therefore, _Mydata's elements are not initialized.
 struct _Big_integer_flt {
+#pragma warning(push)
+#pragma warning(disable : 26495) // Variable 'std::_Big_integer_flt::_Mydata' is uninitialized.
+                                 // Always initialize a member variable (type.6).
     _Big_integer_flt() noexcept : _Myused(0) {}
+#pragma warning(pop)
 
     _Big_integer_flt(const _Big_integer_flt& _Other) noexcept : _Myused(_Other._Myused) {
         _CSTD memcpy(_Mydata, _Other._Mydata, _Other._Myused * sizeof(uint32_t));
@@ -444,11 +453,10 @@ _NODISCARD inline uint32_t _Bit_scan_reverse(const _Big_integer_flt& _Xval) noex
 
     const uint32_t _Bx = _Xval._Myused - 1;
 
-    _STL_INTERNAL_CHECK(_Xval._Mydata[_Bx] != 0); // _Big_integer_flt should always be trimmed
-
     unsigned long _Index; // Intentionally uninitialized for better codegen
 
-    _BitScanReverse(&_Index, _Xval._Mydata[_Bx]); // assumes _Xval._Mydata[_Bx] != 0
+    _STL_INTERNAL_CHECK(_Xval._Mydata[_Bx] != 0); // _Big_integer_flt should always be trimmed
+    _BitScanReverse(&_Index, _Xval._Mydata[_Bx]); // lgtm [cpp/conditionallyuninitializedvariable]
 
     return _Index + 1 + _Bx * _Big_integer_flt::_Element_bits;
 }
@@ -934,7 +942,6 @@ _NODISCARD inline uint64_t _Divide(_Big_integer_flt& _Numerator, const _Big_inte
 
 // ^^^^^^^^^^ DERIVED FROM corecrt_internal_big_integer.h ^^^^^^^^^^
 
-
 // vvvvvvvvvv DERIVED FROM corecrt_internal_strtox.h vvvvvvvvvv
 
 // This type is used to hold a partially-parsed string representation of a floating-point number.
@@ -982,7 +989,7 @@ void _Assemble_floating_point_infinity(const bool _Is_negative, _FloatingType& _
     _Uint_type _Sign_component = _Is_negative;
     _Sign_component <<= _Floating_traits::_Sign_shift;
 
-    const _Uint_type _Exponent_component = _Floating_traits::_Shifted_exponent_mask;
+    constexpr _Uint_type _Exponent_component = _Floating_traits::_Shifted_exponent_mask;
 
     _Result = _Bit_cast<_FloatingType>(_Sign_component | _Exponent_component);
 }
@@ -1229,12 +1236,12 @@ _NODISCARD errc _Assemble_floating_point_value_from_big_integer_flt(const _Big_i
     _FloatingType& _Result) noexcept {
     using _Traits = _Floating_type_traits<_FloatingType>;
 
-    const int32_t _Base_exponent = _Traits::_Mantissa_bits - 1;
+    constexpr int32_t _Base_exponent = _Traits::_Mantissa_bits - 1;
 
     // Very fast case: If we have 64 bits of precision or fewer,
     // we can just take the two low order elements from the _Big_integer_flt:
     if (_Integer_bits_of_precision <= 64) {
-        const int32_t _Exponent = _Base_exponent;
+        constexpr int32_t _Exponent = _Base_exponent;
 
         const uint32_t _Mantissa_low  = _Integer_value._Myused > 0 ? _Integer_value._Mydata[0] : 0;
         const uint32_t _Mantissa_high = _Integer_value._Myused > 1 ? _Integer_value._Mydata[1] : 0;
@@ -1337,7 +1344,7 @@ _NODISCARD errc _Convert_decimal_string_to_floating_type(
     // To generate an N bit mantissa we require N + 1 bits of precision. The extra bit is used to correctly round
     // the mantissa (if there are fewer bits than this available, then that's totally okay;
     // in that case we use what we have and we don't need to round).
-    const uint32_t _Required_bits_of_precision = static_cast<uint32_t>(_Traits::_Mantissa_bits + 1);
+    constexpr uint32_t _Required_bits_of_precision = static_cast<uint32_t>(_Traits::_Mantissa_bits + 1);
 
     // The input is of the form 0.mantissa * 10^exponent, where 'mantissa' are the decimal digits of the mantissa
     // and 'exponent' is the decimal exponent. We decompose the mantissa into two parts: an integer part and a
@@ -1581,6 +1588,8 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
     }
     const char* const _Leading_zero_end = _Next;
 
+    bool _Has_zero_tail = true;
+
     // Scan the integer part of the mantissa:
     for (; _Next != _Last; ++_Next) {
         const unsigned char _Digit_value = _Digit_from_char(*_Next);
@@ -1591,20 +1600,18 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
 
         if (_Mantissa_it != _Mantissa_last) {
             *_Mantissa_it++ = _Digit_value;
+        } else {
+            _Has_zero_tail = _Has_zero_tail && _Digit_value == 0;
         }
     }
     const char* const _Whole_end = _Next;
-
-    // Defend against _Exponent_adjustment integer overflow. (These values don't need to be strict.)
-    constexpr ptrdiff_t _Maximum_adjustment = 1'000'000;
-    constexpr ptrdiff_t _Minimum_adjustment = -1'000'000;
 
     // The exponent adjustment holds the number of digits in the mantissa buffer that appeared before the radix point.
     // It can be negative, and leading zeroes in the integer part are ignored. Examples:
     // For "03333.111", it is 4.
     // For "00000.111", it is 0.
     // For "00000.001", it is -2.
-    int _Exponent_adjustment = static_cast<int>((_STD min)(_Whole_end - _Leading_zero_end, _Maximum_adjustment));
+    ptrdiff_t _Exponent_adjustment = _Whole_end - _Leading_zero_end;
 
     // [_Whole_end, _Dot_end) will contain 0 or 1 '.' characters
     if (_Next != _Last && *_Next == '.') {
@@ -1620,12 +1627,10 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
         for (; _Next != _Last && *_Next == '0'; ++_Next) {
         }
 
-        _Exponent_adjustment = static_cast<int>((_STD max)(_Dot_end - _Next, _Minimum_adjustment));
+        _Exponent_adjustment = _Dot_end - _Next;
     }
 
     // Scan the fractional part of the mantissa:
-    bool _Has_zero_tail = true;
-
     for (; _Next != _Last; ++_Next) {
         const unsigned char _Digit_value = _Digit_from_char(*_Next);
 
@@ -1649,12 +1654,13 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
     const char _Exponent_prefix{_Is_hexadecimal ? 'p' : 'e'};
 
     bool _Exponent_is_negative = false;
-    int _Exponent              = 0;
+    bool _Exp_abs_too_large    = false;
+    ptrdiff_t _Exponent        = 0;
 
     constexpr int _Maximum_temporary_decimal_exponent = 5200;
     constexpr int _Minimum_temporary_decimal_exponent = -5200;
 
-    if (_Fmt != chars_format::fixed // N4713 23.20.3 [charconv.from.chars]/7.3
+    if (_Fmt != chars_format::fixed // N4950 [charconv.from.chars]/6.3
                                     // "if fmt has chars_format::fixed set but not chars_format::scientific,
                                     // the optional exponent part shall not appear"
         && _Next != _Last && (static_cast<unsigned char>(*_Next) | 0x20) == _Exponent_prefix) { // found exponent prefix
@@ -1674,8 +1680,10 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
 
             // found decimal digit
 
-            if (_Exponent <= _Maximum_temporary_decimal_exponent) {
+            if (_Exponent < PTRDIFF_MAX / 10 || (_Exponent == PTRDIFF_MAX / 10 && _Digit_value <= PTRDIFF_MAX % 10)) {
                 _Exponent = _Exponent * 10 + _Digit_value;
+            } else {
+                _Exp_abs_too_large = true;
             }
 
             ++_Unread;
@@ -1691,7 +1699,7 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
     const char* const _Exponent_end = _Next;
 
     if (_Fmt == chars_format::scientific
-        && _Frac_end == _Exponent_end) { // N4713 23.20.3 [charconv.from.chars]/7.2
+        && _Frac_end == _Exponent_end) { // N4950 [charconv.from.chars]/6.2
                                          // "if fmt has chars_format::scientific set but not chars_format::fixed,
                                          // the otherwise optional exponent part shall appear"
         return {_First, errc::invalid_argument};
@@ -1712,22 +1720,58 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
         return {_Next, errc{}};
     }
 
-    // Before we adjust the exponent, handle the case where we detected a wildly
-    // out of range exponent during parsing and clamped the value:
-    if (_Exponent > _Maximum_temporary_decimal_exponent) {
-        _Assemble_floating_point_infinity(_Fp_string._Myis_negative, _Value);
-        return {_Next, errc::result_out_of_range}; // Overflow example: "1e+9999"
+    // Handle exponent of an overly large absolute value.
+    if (_Exp_abs_too_large) {
+        if (_Exponent > 0) {
+            _Assemble_floating_point_infinity(_Fp_string._Myis_negative, _Value);
+            return {_Next, errc::result_out_of_range};
+        } else {
+            _Assemble_floating_point_zero(_Fp_string._Myis_negative, _Value);
+            return {_Next, errc::result_out_of_range};
+        }
     }
 
-    if (_Exponent < _Minimum_temporary_decimal_exponent) {
-        _Assemble_floating_point_zero(_Fp_string._Myis_negative, _Value);
-        return {_Next, errc::result_out_of_range}; // Underflow example: "1e-9999"
+    // Adjust _Exponent and _Exponent_adjustment when they have different signedness to avoid overflow.
+    if (_Exponent > 0 && _Exponent_adjustment < 0) {
+        if (_Is_hexadecimal) {
+            const ptrdiff_t _Further_adjustment = (_STD max)(-((_Exponent - 1) / 4 + 1), _Exponent_adjustment);
+            _Exponent += _Further_adjustment * 4;
+            _Exponent_adjustment -= _Further_adjustment;
+        } else {
+            const ptrdiff_t _Further_adjustment = (_STD max)(-_Exponent, _Exponent_adjustment);
+            _Exponent += _Further_adjustment;
+            _Exponent_adjustment -= _Further_adjustment;
+        }
+    } else if (_Exponent < 0 && _Exponent_adjustment > 0) {
+        if (_Is_hexadecimal) {
+            const ptrdiff_t _Further_adjustment = (_STD min)((-_Exponent - 1) / 4 + 1, _Exponent_adjustment);
+            _Exponent += _Further_adjustment * 4;
+            _Exponent_adjustment -= _Further_adjustment;
+        } else {
+            const ptrdiff_t _Further_adjustment = (_STD min)(-_Exponent, _Exponent_adjustment);
+            _Exponent += _Further_adjustment;
+            _Exponent_adjustment -= _Further_adjustment;
+        }
     }
 
     // In hexadecimal floating constants, the exponent is a base 2 exponent. The exponent adjustment computed during
     // parsing has the same base as the mantissa (so, 16 for hexadecimal floating constants).
     // We therefore need to scale the base 16 multiplier to base 2 by multiplying by log2(16):
     const int _Exponent_adjustment_multiplier{_Is_hexadecimal ? 4 : 1};
+
+    // And then _Exponent and _Exponent_adjustment are either both non-negative or both non-positive.
+    // So we can detect out-of-range cases directly.
+    if (_Exponent > _Maximum_temporary_decimal_exponent
+        || _Exponent_adjustment > _Maximum_temporary_decimal_exponent / _Exponent_adjustment_multiplier) {
+        _Assemble_floating_point_infinity(_Fp_string._Myis_negative, _Value);
+        return {_Next, errc::result_out_of_range}; // Overflow example: "1e+9999"
+    }
+
+    if (_Exponent < _Minimum_temporary_decimal_exponent
+        || _Exponent_adjustment < _Minimum_temporary_decimal_exponent / _Exponent_adjustment_multiplier) {
+        _Assemble_floating_point_zero(_Fp_string._Myis_negative, _Value);
+        return {_Next, errc::result_out_of_range}; // Underflow example: "1e-9999"
+    }
 
     _Exponent += _Exponent_adjustment * _Exponent_adjustment_multiplier;
 
@@ -1743,7 +1787,7 @@ _NODISCARD from_chars_result _Ordinary_floating_from_chars(const char* const _Fi
         return {_Next, errc::result_out_of_range}; // Underflow example: "0.001e-5199"
     }
 
-    _Fp_string._Myexponent       = _Exponent;
+    _Fp_string._Myexponent       = static_cast<int32_t>(_Exponent);
     _Fp_string._Mymantissa_count = static_cast<uint32_t>(_Mantissa_it - _Mantissa_first);
 
     if (_Is_hexadecimal) {
@@ -2169,7 +2213,7 @@ _NODISCARD to_chars_result _Floating_to_chars_hex_shortest(
         // C11 7.21.6.1 "The fprintf function"/8: "If the value is zero, the exponent is zero."
         // Special-casing zero is necessary because of the exponent.
         const char* const _Str = "0p+0";
-        const size_t _Len      = 4;
+        constexpr size_t _Len  = 4;
 
         if (_Last - _First < static_cast<ptrdiff_t>(_Len)) {
             return {_Last, errc::value_too_large};
@@ -2275,7 +2319,6 @@ _NODISCARD to_chars_result _Floating_to_chars_hex_shortest(
     // We've already printed '-' if necessary, so static_cast<uint32_t> avoids testing that again.
     return _STD to_chars(_First, _Last, static_cast<uint32_t>(_Unbiased_exponent));
 }
-
 
 template <class _Floating>
 _NODISCARD inline to_chars_result _Floating_to_chars_general_precision(
@@ -2563,6 +2606,6 @@ _STD_END
 _STL_RESTORE_CLANG_WARNINGS
 #pragma warning(pop)
 #pragma pack(pop)
-#endif // _HAS_CXX17
+#endif // ^^^ _HAS_CXX17 ^^^
 #endif // _STL_COMPILER_PREPROCESSOR
 #endif // _CHARCONV_

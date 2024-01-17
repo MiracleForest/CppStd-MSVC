@@ -336,22 +336,32 @@ inline ptrdiff_t DecompFuncInfo(uint8_t * buffer, FuncInfo4 & FuncInfoDe, uintpt
         // Find the correct one if this is a separated segment
         if (FuncInfoDe.header.isSeparated)
         {
-            int dispToSegMap = ReadInt(&buffer);
-            uint8_t * segBuffer = imageRelToByteBuffer(imageBase, dispToSegMap);
-            uint32_t numSegEntries = ReadUnsigned(&segBuffer);
-
             // By default, an entry not found in the table corresponds to no
             // states associated with the segment
             FuncInfoDe.dispIPtoStateMap = 0;
-            for (uint32_t i = 0; i < numSegEntries; i++)
-            {
-                int32_t segRVA = ReadInt(&segBuffer);
-                int dispSegTable = ReadInt(&segBuffer);
-                if (segRVA == functionStart)
+
+            int dispToSegMap = ReadInt(&buffer);
+            if (dispToSegMap != 0) {
+                uint8_t* segBuffer = imageRelToByteBuffer(imageBase, dispToSegMap);
+                uint32_t numSegEntries = ReadUnsigned(&segBuffer);
+
+                for (uint32_t i = 0; i < numSegEntries; i++)
                 {
-                    FuncInfoDe.dispIPtoStateMap = dispSegTable;
-                    break;
+                    int32_t segRVA = ReadInt(&segBuffer);
+                    int dispSegTable = ReadInt(&segBuffer);
+                    if (segRVA == functionStart)
+                    {
+                        FuncInfoDe.dispIPtoStateMap = dispSegTable;
+                        break;
+                    }
                 }
+            }
+            else {
+                // From everything I see how we encode topIP2StateMap
+                // dispToSegMap == NULL should not be possible.
+                // We should have a valid dispToSegMap pointing to
+                // 0 numSegEntries. fail:
+                __fastfail(FAST_FAIL_FATAL_APP_EXIT);
             }
         }
         // Otherwise, the table is directly encoded in the function info
@@ -765,8 +775,8 @@ public:
 
 private:
     int _numEntries;
-    uint8_t * _bufferStart;
-    UnwindMapEntry4 _UWEntry;
+    uint8_t * _bufferStart{};
+    UnwindMapEntry4 _UWEntry{};
 
     void ReadEntry(uint8_t ** currOffset)
     {
@@ -900,9 +910,9 @@ public:
 
 private:
     uint32_t _numTryBlocks;
-    uint8_t * _buffer;
-    uint8_t * _bufferStart;
-    TryBlockMapEntry4 _tryBlock;
+    uint8_t * _buffer{};
+    uint8_t * _bufferStart{};
+    TryBlockMapEntry4 _tryBlock{};
     // Assumes Number of Try Blocks field has been read out already
     void DecompTryBlock()
     {
@@ -1012,8 +1022,8 @@ public:
 
 private:
     uint32_t _numHandlers;
-    uint8_t * _buffer;
-    uint8_t * _bufferStart;
+    uint8_t * _buffer{};
+    uint8_t * _bufferStart{};
     HandlerType4 _handler;
     uintptr_t _imageBase;
     int32_t _functionStart;
@@ -1164,7 +1174,7 @@ public:
 
 private:
     uint32_t _numEntries;
-    uint8_t *_bufferStart;
+    uint8_t *_bufferStart{};
     uintptr_t _imageBase;
     uint32_t _funcStart;
 
@@ -1268,7 +1278,7 @@ private:
     uint32_t _numEntries;
     uint8_t *_bufferStart;
     uintptr_t _imageBase;
-    SepIPtoStateMapEntry4 singleEntry;
+    SepIPtoStateMapEntry4 singleEntry{};
     bool isSingle;
 
     SepIPtoStateMapEntry4 decompSepIp2State(uint8_t ** buffer)

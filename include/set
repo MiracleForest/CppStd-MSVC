@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _SET_
 #define _SET_
 #include <yvals_core.h>
@@ -54,6 +53,8 @@ class set : public _Tree<_Tset_traits<_Kty, _Pr, _Alloc, false>> {
 public:
     static_assert(!_ENFORCE_MATCHING_ALLOCATORS || is_same_v<_Kty, typename _Alloc::value_type>,
         _MISMATCHED_ALLOCATOR_MESSAGE("set<T, Compare, Allocator>", "T"));
+    static_assert(is_object_v<_Kty>, "The C++ Standard forbids containers of non-object types "
+                                     "because of [container.requirements].");
 
     using _Mybase                = _Tree<_Tset_traits<_Kty, _Pr, _Alloc, false>>;
     using key_type               = _Kty;
@@ -254,7 +255,7 @@ void swap(set<_Kty, _Pr, _Alloc>& _Left, set<_Kty, _Pr, _Alloc>& _Right) noexcep
 
 #if _HAS_CXX20
 _EXPORT_STD template <class _Kty, class _Keylt, class _Alloc, class _Pr>
-typename set<_Kty, _Keylt, _Alloc>::size_type erase_if(set<_Kty, _Keylt, _Alloc>& _Cont, _Pr _Pred) {
+set<_Kty, _Keylt, _Alloc>::size_type erase_if(set<_Kty, _Keylt, _Alloc>& _Cont, _Pr _Pred) {
     return _Erase_nodes_if(_Cont, _Pass_fn(_Pred));
 }
 #endif // _HAS_CXX20
@@ -265,6 +266,8 @@ class multiset : public _Tree<_Tset_traits<_Kty, _Pr, _Alloc, true>> {
 public:
     static_assert(!_ENFORCE_MATCHING_ALLOCATORS || is_same_v<_Kty, typename _Alloc::value_type>,
         _MISMATCHED_ALLOCATOR_MESSAGE("multiset<T, Compare, Allocator>", "T"));
+    static_assert(is_object_v<_Kty>, "The C++ Standard forbids containers of non-object types "
+                                     "because of [container.requirements].");
 
     using _Mybase                = _Tree<_Tset_traits<_Kty, _Pr, _Alloc, true>>;
     using key_type               = _Kty;
@@ -470,7 +473,7 @@ void swap(multiset<_Kty, _Pr, _Alloc>& _Left, multiset<_Kty, _Pr, _Alloc>& _Righ
 
 #if _HAS_CXX20
 _EXPORT_STD template <class _Kty, class _Keylt, class _Alloc, class _Pr>
-typename multiset<_Kty, _Keylt, _Alloc>::size_type erase_if(multiset<_Kty, _Keylt, _Alloc>& _Cont, _Pr _Pred) {
+multiset<_Kty, _Keylt, _Alloc>::size_type erase_if(multiset<_Kty, _Keylt, _Alloc>& _Cont, _Pr _Pred) {
     return _Erase_nodes_if(_Cont, _Pass_fn(_Pred));
 }
 #endif // _HAS_CXX20

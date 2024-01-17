@@ -1484,7 +1484,7 @@ public:
 		}
 
 	// mutators
-	iterator insert(value_type _Val)
+	iterator insert(value_type _Val) new
 		{	// insert node with value _Val, return iterator
 		_Pairnb _Ans = insert_node(_Val);
 

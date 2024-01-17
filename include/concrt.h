@@ -754,8 +754,8 @@ namespace details
             return (--_M_currentSpin > 0);
         }
 
-        unsigned long  _M_currentSpin;
-        unsigned long  _M_currentYield;
+        unsigned long  _M_currentSpin{};
+        unsigned long  _M_currentYield{};
         _SpinState     _M_state;
         _YieldFunction _M_yieldFunction;
     };
@@ -813,7 +813,7 @@ namespace details
     private:
         // Critical section requires windows.h. Hide the implementation so that
         // user code need not include windows.
-        _CONCRT_BUFFER _M_criticalSection[(4 * sizeof(void *) + 2 * sizeof(long) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+        _CONCRT_BUFFER _M_criticalSection[(4 * sizeof(void *) + 2 * sizeof(long) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
     };
 
     //
@@ -916,7 +916,7 @@ namespace details
     private:
         // Critical section requires windows.h. Hide the implementation so that
         // user code need not include windows.h
-        _CONCRT_BUFFER _M_criticalSection[(4 * sizeof(void *) + 2 * sizeof(long) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+        _CONCRT_BUFFER _M_criticalSection[(4 * sizeof(void *) + 2 * sizeof(long) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
     };
 
     //
@@ -2324,17 +2324,7 @@ enum SchedulerType
     /// </summary>
     /**/
     ThreadScheduler,
-
-    /// <summary>
-    ///     User-mode schedulable (UMS) threads are not supported in the Concurrency Runtime in Visual Studio 2012. Using <c>UmsThreadDefault</c>
-    ///     as a value for the <c>SchedulerType</c> policy will not result in an error. However, a scheduler created with that policy will
-    ///     default to using Win32 threads.
-    /// </summary>
-    /**/
-    UmsThreadDefault = ThreadScheduler
 };
-
-#pragma deprecated(UmsThreadDefault)
 
 /// <summary>
 ///     Used by the <c>SchedulingProtocol</c> policy to describe which scheduling algorithm will be utilized for the scheduler. For more
@@ -2875,7 +2865,7 @@ public:
     /// <seealso cref="ScheduleGroup Class"/>
     /// <seealso cref="location Class"/>
     /**/
-    _CONCRTIMP static void __cdecl ScheduleTask(TaskProc _Proc, _Inout_opt_ void * _Data);
+    _CONCRTIMP static void __cdecl ScheduleTask(_In_ TaskProc _Proc, _Inout_opt_ void * _Data);
 
     /// <summary>
     ///     Schedules a light-weight task within the scheduler associated with the calling context. The light-weight task will be placed
@@ -3437,7 +3427,7 @@ public:
     ///     scheduler currently associated with the calling context.
     /// </remarks>
     /**/
-    _CONCRTIMP static Context * __cdecl CurrentContext();
+    _CONCRTIMP static _Ret_notnull_ Context * __cdecl CurrentContext();
 
     /// <summary>
     ///     Injects an additional virtual processor into a scheduler for the duration of a block of code when invoked on a context executing
@@ -3627,7 +3617,7 @@ public:
     private:
 
         critical_section& _M_critical_section;
-        _CONCRT_BUFFER _M_node[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+        _CONCRT_BUFFER _M_node[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
 
         scoped_lock(const scoped_lock&);                    // no copy constructor
         scoped_lock const & operator=(const scoped_lock&);  // no assignment operator
@@ -3645,7 +3635,7 @@ private:
     /**/
     void _Switch_to_active(void * _PLockingNode);
 
-    _CONCRT_BUFFER  _M_activeNode[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+    _CONCRT_BUFFER  _M_activeNode[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
     void * volatile _M_pHead;
     void * volatile _M_pTail;
 
@@ -3797,7 +3787,7 @@ public:
     private:
 
         reader_writer_lock& _M_reader_writer_lock;
-        _CONCRT_BUFFER _M_writerNode[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+        _CONCRT_BUFFER _M_writerNode[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
 
         scoped_lock(const scoped_lock&);                    // no copy constructor
         scoped_lock const & operator=(const scoped_lock&);  // no assignment operator
@@ -3897,7 +3887,7 @@ private:
     /**/
     void _Switch_to_active(void * _PWriter);
 
-    _CONCRT_BUFFER _M_activeWriter[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)];
+    _CONCRT_BUFFER _M_activeWriter[(4 * sizeof(void *) + 2 * sizeof(unsigned int) + sizeof(_CONCRT_BUFFER) - 1) / sizeof(_CONCRT_BUFFER)]{};
     void *         _M_pReaderHead;
     void *         _M_pWriterHead;
     void *         _M_pWriterTail;
@@ -4017,7 +4007,7 @@ public:
     /// <summary>
     ///     Value indicating that a wait should never time out.
     /// </summary>
-    static const unsigned int timeout_infinite = COOPERATIVE_TIMEOUT_INFINITE;
+    static constexpr unsigned int timeout_infinite = COOPERATIVE_TIMEOUT_INFINITE;
 private:
 
     // Prevent bad usage of copy-constructor and copy-assignment
@@ -4192,7 +4182,7 @@ namespace details
     public:
 
         // The function which invokes the work of the chore.
-        TaskProc m_pFunction;
+        TaskProc m_pFunction{};
     };
 
     // _UnrealizedChore represents an unrealized chore -- a unit of work that scheduled in a work
@@ -4273,14 +4263,14 @@ namespace details
         ::Concurrency::details::_TaskCollectionBase * _M_pTaskCollection;
 
         // Internal invocation inside the scheduler.
-        CHOREFUNC _M_pChoreFunction;
+        CHOREFUNC _M_pChoreFunction{};
 
         // Indicates whether the scheduler owns the lifetime of the object and is responsible for freeing it.
         // This flag is ignored by _StructuredTaskCollection
-        bool _M_fRuntimeOwnsLifetime;
+        bool _M_fRuntimeOwnsLifetime{};
 
         // An indication of whether the chore (if stolen) was detached.
-        bool _M_fDetached;
+        bool _M_fDetached{};
 
         // Helper routines
         void _PrepareStealStructured(ContextBase *_PContext);
@@ -4443,7 +4433,7 @@ namespace details
 
         // Tracks the parent collection. (For example, A task collection B created during execution of a chore C on task collection A is
         // considered a child of A).
-        _TaskCollectionBase * _M_pParent;
+        _TaskCollectionBase * _M_pParent{};
 
         // Tracks the inlining depth of this collection for cancellation purposes and packs a series of definition bits.
         int _M_inliningDepth : 28;
@@ -4453,7 +4443,7 @@ namespace details
         _CancellationTokenState *_M_pTokenState;
 
         // The context which owns the task collection. This is the context where the collection is created.
-        void * _M_pOwningContext;
+        void * _M_pOwningContext{};
 
         // The number of unpopped chores associated with the task collection (set by the derived
         // class during chore association.
@@ -4472,23 +4462,23 @@ namespace details
         ::std::exception_ptr * _M_pException;
 
         // Cancellation states
-        static const size_t _S_cancelBitsMask = 0x3;
-        static const size_t _S_cancelNone = 0x0;
-        static const size_t _S_cancelStarted = 0x1;
-        static const size_t _S_cancelDeferredShootdownOwner = 0x2;
-        static const size_t _S_cancelShotdownOwner = 0x3;
+        static constexpr size_t _S_cancelBitsMask = 0x3;
+        static constexpr size_t _S_cancelNone = 0x0;
+        static constexpr size_t _S_cancelStarted = 0x1;
+        static constexpr size_t _S_cancelDeferredShootdownOwner = 0x2;
+        static constexpr size_t _S_cancelShotdownOwner = 0x3;
 
         // Intermediate exceptions.
-        static const size_t _S_nonNull = 0x8;
-        static const size_t _S_cancelException = 0xC;
+        static constexpr size_t _S_nonNull = 0x8;
+        static constexpr size_t _S_cancelException = 0xC;
 
         // initialization state for inlining depth.
-        static const int _S_notInlined = -1;
+        static constexpr int _S_notInlined = -1;
 
         // Inline flags.
-        static const int _S_structured = 0x00000001;
-        static const int _S_localCancel = 0x00000002;
-        static const int _S_reserved = 0x0000000C;
+        static constexpr int _S_structured = 0x00000001;
+        static constexpr int _S_localCancel = 0x00000002;
+        static constexpr int _S_reserved = 0x0000000C;
     };
 
     /// <summary>

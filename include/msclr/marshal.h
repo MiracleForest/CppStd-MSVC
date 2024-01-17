@@ -193,10 +193,7 @@ class error_reporting_helper<_To_Type, _From_Type, /* _Needs_Context */ false>
 {
         public:
                 __declspec(deprecated("This conversion is not supported by the library or the header file needed for this conversion is not included.  Please refer to the documentation on 'How to: Extend the Marshaling Library' for adding your own marshaling method."))
-                static _To_Type marshal_as(const _From_Type& _from_object)
-                {
-                        return _This_conversion_is_not_supported;
-                }
+                static _To_Type marshal_as(const _From_Type&) = delete;
 };
 
 template <class _To_Type, class _From_Type>
@@ -204,10 +201,7 @@ class error_reporting_helper<_To_Type, _From_Type, /* _Needs_Context */ true>
 {
         public:
                 __declspec(deprecated("This conversion requires a marshal_context.  Please use a marshal_context for this conversion."))
-                static _To_Type marshal_as(const _From_Type& _from_object)
-                {
-                        return _This_conversion_requires_a_context;
-                }
+                static _To_Type marshal_as(const _From_Type&) = delete;
 };
 
 template <class _To_Type, class _From_Type>
@@ -242,7 +236,7 @@ template <class _To_Type, class _From_Type>
 inline _To_Type marshal_as(const _From_Type& _from_object)
 {
         using _Decayed = ::std::decay_t<_From_Type>;
-        return _Marshal_as_impl<_To_Type>(::std::conjunction<
+        return _Marshal_as_impl<_To_Type>(typename ::std::conjunction<
                 ::std::is_same<System::String^, _To_Type>,
                 ::std::disjunction<
                         ::std::is_same<char*, _Decayed>,

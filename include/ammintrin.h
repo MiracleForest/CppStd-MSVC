@@ -31,11 +31,11 @@
 
 #pragma once
 
-#if !defined(_M_IX86) && !defined(_M_X64)
-#error This header is specific to X86 and X64 targets
+#if !defined(_M_IX86) && !defined(_M_X64) && !(defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
+#error This header is specific to X86, X64, ARM64, and ARM64EC targets
 #endif
 
-#if defined(_M_ARM64EC) && !defined(__INTRIN_H_)
+#if (defined(_M_ARM64) || defined(_M_ARM64EC)) && !defined(__INTRIN_H_)
 #error this header should only be included through <intrin.h>
 #endif
 
@@ -321,7 +321,8 @@ void _mm_monitorx(void const *, unsigned int, unsigned int);
 void _mm_mwaitx(unsigned int, unsigned int, unsigned int);
 
 void _mm_clzero(void const *);
-
+unsigned __int64 _rdpru(unsigned int);
+  
 #if defined (_M_X64)
 // Secure Nested Paging
 typedef struct rmp_seg {

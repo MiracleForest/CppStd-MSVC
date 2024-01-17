@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _REGEX_
 #define _REGEX_
 #include <yvals_core.h>
@@ -36,29 +35,27 @@ _STL_DISABLE_CLANG_WARNINGS
 
 #ifndef _REGEX_MAX_COMPLEXITY_COUNT
 #define _REGEX_MAX_COMPLEXITY_COUNT 10000000L // set to 0 to disable
-#endif // _REGEX_MAX_COMPLEXITY_COUNT
+#endif // !defined(_REGEX_MAX_COMPLEXITY_COUNT)
 
 #ifndef _REGEX_MAX_STACK_COUNT
 #ifdef _WIN64
 #define _REGEX_MAX_STACK_COUNT 600L // set to 0 to disable
-#else // _WIN64
+#else // ^^^ defined(_WIN64) / !defined(_WIN64) vvv
 #define _REGEX_MAX_STACK_COUNT 1000L // set to 0 to disable
-#endif // _WIN64
-#endif // _REGEX_MAX_STACK_COUNT
+#endif // ^^^ !defined(_WIN64) ^^^
+#endif // !defined(_REGEX_MAX_STACK_COUNT)
 
 #ifndef _ENHANCED_REGEX_VISUALIZER
-
 #ifdef _DEBUG
 #define _ENHANCED_REGEX_VISUALIZER 1
-
-#else // _DEBUG
+#else // ^^^ defined(_DEBUG) / !defined(_DEBUG) vvv
 #define _ENHANCED_REGEX_VISUALIZER 0
-#endif // _DEBUG
-#endif // _ENHANCED_REGEX_VISUALIZER
+#endif // ^^^ !defined(_DEBUG) ^^^
+#endif // !defined(_ENHANCED_REGEX_VISUALIZER)
 
 _STD_BEGIN
 
-enum _Meta_type { // meta character representations for parser
+enum _Meta_type : int { // meta character representations for parser
     _Meta_lpar  = '(',
     _Meta_rpar  = ')',
     _Meta_dlr   = '$',
@@ -178,6 +175,38 @@ struct _Cl_names { // structure to associate class name with mask value
     }
 };
 
+template <class _Traits>
+struct _Char_traits_eq {
+    using _Elem = typename _Traits::char_type;
+
+    bool operator()(_Elem _Left, _Elem _Right) const noexcept {
+        return _Traits::eq(_Left, _Right);
+    }
+};
+
+template <class _Traits>
+struct _Char_traits_lt {
+    using _Elem = typename _Traits::char_type;
+
+    bool operator()(_Elem _Left, _Elem _Right) const noexcept {
+        return _Traits::lt(_Left, _Right);
+    }
+};
+
+// library-provided char_traits::eq behaves like equal_to<_Elem>
+// TRANSITION: This should not be activated for user-defined specializations of char_traits
+template <class _Elem>
+_INLINE_VAR constexpr bool _Can_memcmp_elements_with_pred<_Elem, _Elem, _Char_traits_eq<char_traits<_Elem>>> =
+    _Can_memcmp_elements<_Elem, _Elem>;
+
+// library-provided char_traits::lt behaves like less<make_unsigned_t<_Elem>>
+// TRANSITION: This should not be activated for user-defined specializations of char_traits
+template <class _Elem>
+struct _Lex_compare_memcmp_classify_pred<_Elem, _Elem, _Char_traits_lt<char_traits<_Elem>>> {
+    using _UElem = make_unsigned_t<_Elem>;
+    using _Pred  = conditional_t<_Lex_compare_memcmp_classify_elements<_UElem, _UElem>, less<int>, void>;
+};
+
 template <class _RxTraits>
 struct _Cmp_cs { // functor to compare two character values for equality
     using _Elem = typename _RxTraits::char_type;
@@ -214,7 +243,6 @@ struct _Cmp_collate { // functor to compare for locale-specific equality
 
 struct _Regex_traits_base { // base of all regular expression traits
     enum _Char_class_type {
-        _Ch_none   = 0,
         _Ch_alnum  = ctype_base::alnum,
         _Ch_alpha  = ctype_base::alpha,
         _Ch_cntrl  = ctype_base::cntrl,
@@ -575,7 +603,7 @@ struct _Get_member_comparison_category {
 
 template <class _Ty>
 struct _Get_member_comparison_category<_Ty, void_t<typename _Ty::comparison_category>> {
-    using type = typename _Ty::comparison_category;
+    using type = _Ty::comparison_category;
 };
 #endif // _HAS_CXX20
 
@@ -593,7 +621,7 @@ public:
     using _Size_type = typename string_type::size_type;
 
 #if _HAS_CXX20
-    using _Comparison_category = typename _Get_member_comparison_category<_Traits>::type;
+    using _Comparison_category = _Get_member_comparison_category<_Traits>::type;
 #endif // _HAS_CXX20
 
     constexpr sub_match() : _Mybase(), matched(false) {}
@@ -626,6 +654,11 @@ public:
 
     _NODISCARD int compare(_In_z_ const value_type* _Ptr) const { // compare *this to array pointed to by _Ptr
         return _Compare(_Ptr, _Traits::length(_Ptr));
+    }
+
+    void swap(sub_match& _Other) noexcept(_Is_nothrow_swappable<_BidIt>::value) {
+        _Mybase::swap(_Other);
+        _STD swap(matched, _Other.matched);
     }
 
     int _Compare(const value_type* const _Ptr, const _Size_type _Count) const {
@@ -701,7 +734,7 @@ _NODISCARD bool operator==(const sub_match<_BidIt>& _Left, const sub_match<_BidI
 #if _HAS_CXX20
 _EXPORT_STD template <class _BidIt>
 _NODISCARD auto operator<=>(const sub_match<_BidIt>& _Left, const sub_match<_BidIt>& _Right) {
-    return static_cast<typename sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
+    return static_cast<sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
 }
 #else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
 template <class _BidIt>
@@ -728,7 +761,7 @@ template <class _BidIt>
 _NODISCARD bool operator>=(const sub_match<_BidIt>& _Left, const sub_match<_BidIt>& _Right) {
     return !(_Left < _Right);
 }
-#endif // !_HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
 
 _EXPORT_STD template <class _BidIt>
 _NODISCARD bool operator==(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>* _Right) {
@@ -738,7 +771,7 @@ _NODISCARD bool operator==(const sub_match<_BidIt>& _Left, const _Iter_value_t<_
 #if _HAS_CXX20
 _EXPORT_STD template <class _BidIt>
 _NODISCARD auto operator<=>(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>* _Right) {
-    return static_cast<typename sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
+    return static_cast<sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
 }
 #else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
 template <class _BidIt>
@@ -795,7 +828,7 @@ template <class _BidIt>
 _NODISCARD bool operator>=(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>* _Right) {
     return !(_Left < _Right);
 }
-#endif // !_HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
 
 _EXPORT_STD template <class _BidIt>
 _NODISCARD bool operator==(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>& _Right) {
@@ -805,8 +838,7 @@ _NODISCARD bool operator==(const sub_match<_BidIt>& _Left, const _Iter_value_t<_
 #if _HAS_CXX20
 _EXPORT_STD template <class _BidIt>
 _NODISCARD auto operator<=>(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>& _Right) {
-    return static_cast<typename sub_match<_BidIt>::_Comparison_category>(
-        _Left._Compare(_STD addressof(_Right), 1) <=> 0);
+    return static_cast<sub_match<_BidIt>::_Comparison_category>(_Left._Compare(_STD addressof(_Right), 1) <=> 0);
 }
 #else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
 template <class _BidIt>
@@ -863,7 +895,7 @@ template <class _BidIt>
 _NODISCARD bool operator>=(const sub_match<_BidIt>& _Left, const _Iter_value_t<_BidIt>& _Right) {
     return !(_Left < _Right);
 }
-#endif // !_HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
 
 _EXPORT_STD template <class _BidIt, class _Traits, class _Alloc>
 _NODISCARD bool operator==(
@@ -875,7 +907,7 @@ _NODISCARD bool operator==(
 _EXPORT_STD template <class _BidIt, class _Traits, class _Alloc>
 _NODISCARD auto operator<=>(
     const sub_match<_BidIt>& _Left, const basic_string<_Iter_value_t<_BidIt>, _Traits, _Alloc>& _Right) {
-    return static_cast<typename sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
+    return static_cast<sub_match<_BidIt>::_Comparison_category>(_Left.compare(_Right) <=> 0);
 }
 #else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
 template <class _BidIt, class _Traits, class _Alloc>
@@ -943,7 +975,7 @@ _NODISCARD bool operator>=(
     const sub_match<_BidIt>& _Left, const basic_string<_Iter_value_t<_BidIt>, _Traits, _Alloc>& _Right) {
     return !(_Left < _Right);
 }
-#endif // !_HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
 
 _EXPORT_STD template <class _Elem, class _Traits, class _BidIt>
 basic_ostream<_Elem, _Traits>& operator<<(basic_ostream<_Elem, _Traits>& _Ostr, const sub_match<_BidIt>& _Match) {
@@ -979,9 +1011,19 @@ public:
     using char_type       = typename iterator_traits<_BidIt>::value_type;
     using string_type     = basic_string<char_type>;
 
-    match_results() : _Org(), _Ready(false) {}
+    match_results() = default;
 
-    explicit match_results(const _Alloc& _Al) : _Org(), _Ready(false), _Matches(_Al) {}
+    explicit match_results(const _Alloc& _Al) : _Matches(_Al) {}
+
+    match_results(const match_results& _Other, const _Alloc& _Al)
+        : _Org(_Other._Org), _Ready(_Other._Ready), _Matches(_Other._Matches, _Al), _Prefix(_Other._Prefix),
+          _Suffix(_Other._Suffix), _Null_elem(_Other._Null_elem) {}
+
+    match_results(match_results&& _Other, const _Alloc& _Al) noexcept(
+        conjunction_v<typename _Mytraits::is_always_equal, is_nothrow_move_constructible<_BidIt>>) // strengthened
+        : _Org(_STD move(_Other._Org)), _Ready(_Other._Ready), _Matches(_STD move(_Other._Matches), _Al),
+          _Prefix(_STD move(_Other._Prefix)), _Suffix(_STD move(_Other._Suffix)),
+          _Null_elem(_STD move(_Other._Null_elem)) {}
 
     _NODISCARD bool ready() const noexcept /* strengthened */ {
         return _Ready;
@@ -1091,8 +1133,9 @@ public:
     }
 
     void swap(match_results& _Right) noexcept(_Is_nothrow_swappable<_BidIt>::value) /* strengthened */ {
+        using _STD swap;
         _STD swap(_Ready, _Right._Ready);
-        _Swap_adl(_Org, _Right._Org);
+        swap(_Org, _Right._Org); // intentional ADL
         _Matches.swap(_Right._Matches);
         _STD swap(_Prefix, _Right._Prefix);
         _STD swap(_Suffix, _Right._Suffix);
@@ -1122,8 +1165,8 @@ public:
         return _Matches[_Sub];
     }
 
-    _BidIt _Org;
-    bool _Ready;
+    _BidIt _Org = _BidIt();
+    bool _Ready = false;
 
 private:
     _MyCont _Matches;
@@ -1320,7 +1363,7 @@ public:
         static_assert(sizeof(_Refs) == sizeof(_Atomic_counter_t), "invalid _Refs size");
     }
 
-    regex_constants::syntax_option_type _Fl;
+    regex_constants::syntax_option_type _Fl{};
     unsigned int _Loops;
     unsigned int _Marks;
     unsigned int _Refs;
@@ -1439,8 +1482,8 @@ struct _Loop_vals_t { // storage for loop administration
 
 class _Node_rep : public _Node_base { // node that marks the beginning of a repetition
 public:
-    _Node_rep(bool _Greedy, int _Mn, int _Mx, _Node_end_rep* _End, unsigned int _Number)
-        : _Node_base(_N_rep, _Greedy ? _Fl_greedy : _Fl_none), _Min(_Mn), _Max(_Mx), _End_rep(_End),
+    _Node_rep(bool _Greedy, int _Min_, int _Max_, _Node_end_rep* _End, unsigned int _Number)
+        : _Node_base(_N_rep, _Greedy ? _Fl_greedy : _Fl_none), _Min(_Min_), _Max(_Max_), _End_rep(_End),
           _Loop_number(_Number), _Simple_loop(-1) {}
 
     const int _Min;
@@ -1825,9 +1868,9 @@ public:
     basic_regex(const basic_regex& _Right)
 #if _ENHANCED_REGEX_VISUALIZER
         : _Rep(nullptr), _Traits(_Right._Traits), _Visualization(_Right._Visualization)
-#else // _ENHANCED_REGEX_VISUALIZER
+#else
         : _Rep(nullptr), _Traits(_Right._Traits)
-#endif // _ENHANCED_REGEX_VISUALIZER
+#endif
     { // construct copy of _Right
         _Reset(_Right._Rep);
     }
@@ -2309,7 +2352,7 @@ _OutIt _Regex_replace1(_OutIt _Result, _BidIt _First, _BidIt _Last, const basic_
             _Flags |= regex_constants::match_prev_avail;
         }
     }
-    return _Flgs & regex_constants::format_no_copy ? _Result : _Copy_unchecked(_Pos, _Last, _Result);
+    return _Flgs & regex_constants::format_no_copy ? _Result : _STD _Copy_unchecked(_Pos, _Last, _Result);
 }
 
 _EXPORT_STD template <class _OutIt, class _BidIt, class _RxTraits, class _Elem, class _Traits, class _Alloc>
@@ -2383,6 +2426,9 @@ public:
     using pointer           = const value_type*;
     using reference         = const value_type&;
     using iterator_category = forward_iterator_tag;
+#if _HAS_CXX20
+    using iterator_concept = input_iterator_tag;
+#endif // _HAS_CXX20
 
     regex_iterator() : _MyRe(nullptr) {} // construct end of sequence iterator
 
@@ -2421,7 +2467,7 @@ public:
     _NODISCARD bool operator==(default_sentinel_t) const {
         return !_MyRe;
     }
-#endif // __cpp_lib_concepts
+#endif // defined(__cpp_lib_concepts)
 
     _NODISCARD const value_type& operator*() const {
 #if _ITERATOR_DEBUG_LEVEL != 0
@@ -2519,6 +2565,9 @@ public:
     using pointer           = const value_type*;
     using reference         = const value_type&;
     using iterator_category = forward_iterator_tag;
+#if _HAS_CXX20
+    using iterator_concept = input_iterator_tag;
+#endif // _HAS_CXX20
 
     regex_token_iterator() : _Res(nullptr) {} // construct end of sequence iterator
 
@@ -2611,7 +2660,7 @@ public:
     _NODISCARD bool operator==(default_sentinel_t) const {
         return !_Res;
     }
-#endif // __cpp_lib_concepts
+#endif // defined(__cpp_lib_concepts)
 
     _NODISCARD const value_type& operator*() const {
 #if _ITERATOR_DEBUG_LEVEL != 0
@@ -3083,8 +3132,8 @@ void _Builder<_FwdIt, _Elem, _RxTraits>::_Add_rep(int _Min, int _Max, bool _Gree
         _Insert_node(_Pos, _If_expr);
 
         if (!_Greedy) {
-            _Swap_adl(_If_expr->_Next->_Prev, _If_empty_str->_Next->_Prev);
-            _Swap_adl(_If_expr->_Next, _If_empty_str->_Next);
+            swap(_If_expr->_Next->_Prev, _If_empty_str->_Next->_Prev); // intentional ADL
+            swap(_If_expr->_Next, _If_empty_str->_Next); // intentional ADL
         }
     } else {
         _Node_end_rep* _Node0 = new _Node_end_rep();

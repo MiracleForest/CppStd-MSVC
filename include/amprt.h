@@ -187,7 +187,7 @@ namespace details
         }
 
         // Move constructor
-        _Reference_counted_obj_ptr(_Reference_counted_obj_ptr &&_Other) : _M_obj_ptr(_Other._M_obj_ptr)
+        _Reference_counted_obj_ptr(_Reference_counted_obj_ptr &&_Other) noexcept : _M_obj_ptr(_Other._M_obj_ptr)
         {
             _Other._M_obj_ptr = nullptr;
             // No change to ref-count
@@ -218,7 +218,7 @@ namespace details
         }
 
         // Move-assignment operator
-        _Reference_counted_obj_ptr& operator=(_Reference_counted_obj_ptr &&_Other)
+        _Reference_counted_obj_ptr& operator=(_Reference_counted_obj_ptr &&_Other) noexcept
         {
             if (_M_obj_ptr != _Other._M_obj_ptr)
             {
@@ -642,7 +642,7 @@ namespace details
         }
 
         // Move constructor
-        _Texture_descriptor(_Texture_descriptor &&_Other) __CPU_ONLY
+        _Texture_descriptor(_Texture_descriptor &&_Other) __CPU_ONLY noexcept
         {
             *this = std::move(_Other);
         }
@@ -772,7 +772,7 @@ namespace details
         }
 
         // Move constructor
-        _Sampler_descriptor(_Sampler_descriptor &&_Other) __CPU_ONLY
+        _Sampler_descriptor(_Sampler_descriptor &&_Other) __CPU_ONLY noexcept
         {
             *this = std::move(_Other);
         }
@@ -986,7 +986,7 @@ namespace direct3d
         /// <param name="_Other">
         ///     The accelerator_view from which to move.
         /// </param>
-        _AMPIMP scoped_d3d_access_lock(scoped_d3d_access_lock &&_Other);
+        _AMPIMP scoped_d3d_access_lock(scoped_d3d_access_lock &&_Other) noexcept;
 
         /// <summary>
         ///     Move assignment operator for scoped_d3d_access_lock:  Take ownership
@@ -999,7 +999,7 @@ namespace direct3d
         /// <returns>
         ///     A reference to this scoped_accelerator_view_lock.
         /// </returns>
-        _AMPIMP scoped_d3d_access_lock& operator=(scoped_d3d_access_lock &&_Other);
+        _AMPIMP scoped_d3d_access_lock& operator=(scoped_d3d_access_lock &&_Other) noexcept;
 
     private:
         // No copy constructor
@@ -1292,7 +1292,7 @@ public:
     /// <summary>
     ///     Move constructor
     /// </summary>
-    completion_future(completion_future&& _Other)
+    completion_future(completion_future&& _Other) noexcept
         : _M_shared_future(std::move(_Other._M_shared_future)),
         _M_task(std::move(_Other._M_task))
     {
@@ -1321,7 +1321,7 @@ public:
     /// <summary>
     ///     Move assignment operator
     /// </summary>
-    completion_future& operator=(completion_future&& _Other)
+    completion_future& operator=(completion_future&& _Other) noexcept
     {
         if (this != &_Other) {
             _M_shared_future = std::move(_Other._M_shared_future);
@@ -2430,9 +2430,9 @@ namespace details
 
         void * _M_data_ptr;
         bool _M_is_adopted;
-        unsigned int _M_filter_mode;
-        unsigned int _M_address_mode;
-        float _M_border_color[4];
+        unsigned int _M_filter_mode{};
+        unsigned int _M_address_mode{};
+        float _M_border_color[4]{};
     };
 
     // Forward declaration for copy helper functions
@@ -2980,15 +2980,15 @@ namespace details
 
         _Array_copy_desc() {}
 
-        unsigned int _Rank;
+        unsigned int _Rank{};
 
         // Shape of source
-        unsigned int  _Src_linear_offset;
+        unsigned int  _Src_linear_offset{};
         std::vector<unsigned int> _Src_extents;
         std::vector<unsigned int> _Src_copy_offset;
 
         // Shape of destination
-        unsigned int  _Dst_linear_offset;
+        unsigned int  _Dst_linear_offset{};
         std::vector<unsigned int> _Dst_extents;
         std::vector<unsigned int> _Dst_copy_offset;
 

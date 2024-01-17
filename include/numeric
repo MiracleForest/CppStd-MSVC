@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _NUMERIC_
 #define _NUMERIC_
 #include <yvals_core.h>
@@ -11,8 +10,12 @@
 #include <xutility>
 
 #if _HAS_CXX17
-#include <limits>
+#include <__msvc_bit_utils.hpp>
 #endif // _HAS_CXX17
+
+#if _HAS_CXX20
+#include <cfloat>
+#endif // _HAS_CXX20
 
 #pragma pack(push, _CRT_PACKING)
 #pragma warning(push, _STL_WARNING_LEVEL)
@@ -30,9 +33,9 @@ _NODISCARD _CONSTEXPR20 _Ty accumulate(const _InIt _First, const _InIt _Last, _T
     for (; _UFirst != _ULast; ++_UFirst) {
 #if _HAS_CXX20
         _Val = _Reduce_op(_STD move(_Val), *_UFirst);
-#else // ^^^ _HAS_CXX20 ^^^ // vvv !_HAS_CXX20 vvv
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
         _Val = _Reduce_op(_Val, *_UFirst);
-#endif // _HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
     }
     return _Val;
 }
@@ -62,10 +65,10 @@ _Ty _Reduce_plus_arithmetic_ranges(_InIt _First, const _InIt _Last, _Ty _Val) {
 }
 #pragma float_control(pop)
 
-#else // ^^^ _STD_VECTORIZE_WITH_FLOAT_CONTROL ^^^ // vvv !_STD_VECTORIZE_WITH_FLOAT_CONTROL vvv
+#else // ^^^ _STD_VECTORIZE_WITH_FLOAT_CONTROL / !_STD_VECTORIZE_WITH_FLOAT_CONTROL vvv
 template <class _InIt, class _Ty, class _BinOp>
 inline constexpr bool _Plus_on_arithmetic_ranges_reduction_v = false;
-#endif // _STD_VECTORIZE_WITH_FLOAT_CONTROL
+#endif // ^^^ !_STD_VECTORIZE_WITH_FLOAT_CONTROL ^^^
 
 _EXPORT_STD template <class _InIt, class _Ty, class _BinOp>
 _NODISCARD _CONSTEXPR20 _Ty reduce(const _InIt _First, const _InIt _Last, _Ty _Val, _BinOp _Reduce_op) {
@@ -83,7 +86,7 @@ _NODISCARD _CONSTEXPR20 _Ty reduce(const _InIt _First, const _InIt _Last, _Ty _V
     }
 
     for (; _UFirst != _ULast; ++_UFirst) {
-        _Val = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4713
+        _Val = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4950
     }
 
     return _Val;
@@ -108,7 +111,6 @@ _NODISCARD _Ty reduce(_ExPo&& _Exec, _FwdIt _First, _FwdIt _Last, _Ty _Val, _Bin
 _EXPORT_STD template <class _ExPo, class _FwdIt, class _Ty, _Enable_if_execution_policy_t<_ExPo> = 0>
 _NODISCARD _Ty reduce(_ExPo&& _Exec, const _FwdIt _First, const _FwdIt _Last, _Ty _Val) noexcept /* terminates */ {
     // return commutative and associative reduction of _Val and [_First, _Last)
-    _REQUIRE_PARALLEL_ITERATOR(_FwdIt);
     return _STD reduce(_STD forward<_ExPo>(_Exec), _First, _Last, _STD move(_Val), plus{});
 }
 
@@ -117,7 +119,6 @@ _NODISCARD _Iter_value_t<_FwdIt> reduce(_ExPo&& _Exec, const _FwdIt _First, cons
 /* terminates */ {
     // return commutative and associative reduction of
     // iterator_traits<_FwdIt>::value_type{} and [_First, _Last)
-    _REQUIRE_PARALLEL_ITERATOR(_FwdIt);
     return _STD reduce(_STD forward<_ExPo>(_Exec), _First, _Last, _Iter_value_t<_FwdIt>{}, plus{});
 }
 #endif // _HAS_CXX17
@@ -133,10 +134,10 @@ _NODISCARD _CONSTEXPR20 _Ty inner_product(
     auto _UFirst2      = _Get_unwrapped_n(_First2, _Idl_distance<_InIt1>(_UFirst1, _ULast1));
     for (; _UFirst1 != _ULast1; ++_UFirst1, (void) ++_UFirst2) {
 #if _HAS_CXX20
-        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4713
-#else // ^^^ _HAS_CXX20 ^^^ // vvv !_HAS_CXX20 vvv
-        _Val = _Reduce_op(_Val, _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4713
-#endif // _HAS_CXX20
+        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4950
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
+        _Val = _Reduce_op(_Val, _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4950
+#endif // ^^^ !_HAS_CXX20 ^^^
     }
 
     return _Val;
@@ -167,10 +168,10 @@ _Ty _Transform_reduce_arithmetic_defaults(_InIt1 _First1, const _InIt1 _Last1, _
     return _Val;
 }
 #pragma float_control(pop)
-#else // ^^^ _STD_VECTORIZE_WITH_FLOAT_CONTROL ^^^ // vvv !_STD_VECTORIZE_WITH_FLOAT_CONTROL vvv
+#else // ^^^ _STD_VECTORIZE_WITH_FLOAT_CONTROL / !_STD_VECTORIZE_WITH_FLOAT_CONTROL vvv
 template <class _InIt1, class _InIt2, class _Ty, class _BinOp1, class _BinOp2>
 inline constexpr bool _Default_ops_transform_reduce_v = false;
-#endif // _STD_VECTORIZE_WITH_FLOAT_CONTROL
+#endif // ^^^ !_STD_VECTORIZE_WITH_FLOAT_CONTROL ^^^
 
 _EXPORT_STD template <class _InIt1, class _InIt2, class _Ty, class _BinOp1, class _BinOp2>
 _NODISCARD _CONSTEXPR20 _Ty transform_reduce(
@@ -193,7 +194,7 @@ _NODISCARD _CONSTEXPR20 _Ty transform_reduce(
     }
 
     for (; _UFirst1 != _ULast1; ++_UFirst1, (void) ++_UFirst2) {
-        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4713
+        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst1, *_UFirst2)); // Requirement missing from N4950
     }
     return _Val;
 }
@@ -213,7 +214,7 @@ _NODISCARD _CONSTEXPR20 _Ty transform_reduce(
     auto _UFirst      = _Get_unwrapped(_First);
     const auto _ULast = _Get_unwrapped(_Last);
     for (; _UFirst != _ULast; ++_UFirst) {
-        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4713
+        _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4950
     }
 
     return _Val;
@@ -228,15 +229,13 @@ _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Ty, _Ena
 _NODISCARD _Ty transform_reduce(_ExPo&& _Exec, _FwdIt1 _First1, _FwdIt1 _Last1, _FwdIt2 _First2, _Ty _Val) noexcept
 /* terminates */ {
     // return commutative and associative transform-reduction of sequences
-    _REQUIRE_PARALLEL_ITERATOR(_FwdIt1);
-    _REQUIRE_PARALLEL_ITERATOR(_FwdIt2);
     return _STD transform_reduce(
         _STD forward<_ExPo>(_Exec), _First1, _Last1, _First2, _STD move(_Val), plus{}, multiplies{});
 }
 
 _EXPORT_STD template <class _ExPo, class _FwdIt, class _Ty, class _BinOp, class _UnaryOp,
     _Enable_if_execution_policy_t<_ExPo> = 0>
-_NODISCARD _Ty transform_reduce(_ExPo&& _Exec, const _FwdIt _First1, const _FwdIt _Last1, _Ty _Val, _BinOp _Reduce_op,
+_NODISCARD _Ty transform_reduce(_ExPo&& _Exec, _FwdIt _First1, _FwdIt _Last1, _Ty _Val, _BinOp _Reduce_op,
     _UnaryOp _Transform_op) noexcept; // terminates
 #endif // _HAS_CXX17
 
@@ -259,9 +258,9 @@ _CONSTEXPR20 _OutIt partial_sum(const _InIt _First, const _InIt _Last, _OutIt _D
             }
 #if _HAS_CXX20
             _Val = _Reduce_op(_STD move(_Val), *_UFirst);
-#else // ^^^ _HAS_CXX20 ^^^ // vvv !_HAS_CXX20 vvv
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
             _Val      = _Reduce_op(_Val, *_UFirst);
-#endif // _HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
         }
     }
 
@@ -293,7 +292,7 @@ _CONSTEXPR20 _OutIt exclusive_scan(const _InIt _First, const _InIt _Last, _OutIt
                 break;
             }
 
-            _Val = _STD move(_Tmp); // Requirement missing from N4713
+            _Val = _STD move(_Tmp); // Requirement missing from N4950
         }
     }
 
@@ -309,7 +308,7 @@ _CONSTEXPR20 _OutIt exclusive_scan(const _InIt _First, const _InIt _Last, const 
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Ty, class _BinOp,
     _Enable_if_execution_policy_t<_ExPo> = 0>
-_FwdIt2 exclusive_scan(_ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, _FwdIt2 _Dest, _Ty _Val,
+_FwdIt2 exclusive_scan(_ExPo&& _Exec, _FwdIt1 _First, _FwdIt1 _Last, _FwdIt2 _Dest, _Ty _Val,
     _BinOp _Reduce_op) noexcept; // terminates
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Ty, _Enable_if_execution_policy_t<_ExPo> = 0>
@@ -327,7 +326,7 @@ _CONSTEXPR20 _OutIt inclusive_scan(const _InIt _First, const _InIt _Last, _OutIt
     const auto _ULast = _Get_unwrapped(_Last);
     auto _UDest       = _Get_unwrapped_n(_Dest, _Idl_distance<_InIt>(_UFirst, _ULast));
     for (; _UFirst != _ULast; ++_UFirst) {
-        _Val    = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4713
+        _Val    = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4950
         *_UDest = _Val;
         ++_UDest;
     }
@@ -344,7 +343,7 @@ _CONSTEXPR20 _OutIt inclusive_scan(const _InIt _First, const _InIt _Last, _OutIt
     const auto _ULast = _Get_unwrapped(_Last);
     auto _UDest       = _Get_unwrapped_n(_Dest, _Idl_distance<_InIt>(_UFirst, _ULast));
     if (_UFirst != _ULast) {
-        _Iter_value_t<_InIt> _Val = *_UFirst; // Requirement missing from N4713
+        _Iter_value_t<_InIt> _Val = *_UFirst; // Requirement missing from N4950
         for (;;) {
             *_UDest = _Val;
             ++_UDest;
@@ -353,7 +352,7 @@ _CONSTEXPR20 _OutIt inclusive_scan(const _InIt _First, const _InIt _Last, _OutIt
                 break;
             }
 
-            _Val = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4713
+            _Val = _Reduce_op(_STD move(_Val), *_UFirst); // Requirement missing from N4950
         }
     }
 
@@ -401,7 +400,7 @@ _CONSTEXPR20 _OutIt transform_exclusive_scan(
                 break;
             }
 
-            _Val = _STD move(_Tmp); // Requirement missing from N4713
+            _Val = _STD move(_Tmp); // Requirement missing from N4950
         }
     }
 
@@ -411,8 +410,8 @@ _CONSTEXPR20 _OutIt transform_exclusive_scan(
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _OutIt, class _Ty, class _BinOp, class _UnaryOp,
     _Enable_if_execution_policy_t<_ExPo> = 0>
-_OutIt transform_exclusive_scan(_ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, _OutIt _Dest, _Ty _Val,
-    _BinOp _Reduce_op, _UnaryOp _Transform_op) noexcept; // terminates
+_OutIt transform_exclusive_scan(_ExPo&& _Exec, _FwdIt1 _First, _FwdIt1 _Last, _OutIt _Dest, _Ty _Val, _BinOp _Reduce_op,
+    _UnaryOp _Transform_op) noexcept; // terminates
 
 _EXPORT_STD template <class _InIt, class _OutIt, class _Ty, class _BinOp, class _UnaryOp>
 _CONSTEXPR20 _OutIt transform_inclusive_scan(
@@ -423,7 +422,7 @@ _CONSTEXPR20 _OutIt transform_inclusive_scan(
     const auto _ULast = _Get_unwrapped(_Last);
     auto _UDest       = _Get_unwrapped_n(_Dest, _Idl_distance<_InIt>(_UFirst, _ULast));
     for (; _UFirst != _ULast; ++_UFirst) {
-        _Val    = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4713
+        _Val    = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4950
         *_UDest = _Val;
         ++_UDest;
     }
@@ -441,7 +440,7 @@ _CONSTEXPR20 _OutIt transform_inclusive_scan(
     const auto _ULast = _Get_unwrapped(_Last);
     auto _UDest       = _Get_unwrapped_n(_Dest, _Idl_distance<_InIt>(_UFirst, _ULast));
     if (_UFirst != _ULast) {
-        auto _Val = _Transform_op(*_UFirst); // Requirement missing from N4713, also type to use unclear
+        auto _Val = _Transform_op(*_UFirst); // Requirement missing from N4950, also type to use unclear
         for (;;) {
             *_UDest = _Val;
             ++_UDest;
@@ -450,7 +449,7 @@ _CONSTEXPR20 _OutIt transform_inclusive_scan(
                 break;
             }
 
-            _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4713
+            _Val = _Reduce_op(_STD move(_Val), _Transform_op(*_UFirst)); // Requirement missing from N4950
         }
     }
 
@@ -460,13 +459,13 @@ _CONSTEXPR20 _OutIt transform_inclusive_scan(
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _Ty, class _BinOp, class _UnaryOp,
     _Enable_if_execution_policy_t<_ExPo> = 0>
-_FwdIt2 transform_inclusive_scan(_ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, _FwdIt2 _Dest,
-    _BinOp _Reduce_op, _UnaryOp _Transform_op, _Ty _Val) noexcept; // terminates
+_FwdIt2 transform_inclusive_scan(_ExPo&& _Exec, _FwdIt1 _First, _FwdIt1 _Last, _FwdIt2 _Dest, _BinOp _Reduce_op,
+    _UnaryOp _Transform_op, _Ty _Val) noexcept; // terminates
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _BinOp, class _UnaryOp,
     _Enable_if_execution_policy_t<_ExPo> = 0>
-_FwdIt2 transform_inclusive_scan(_ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, _FwdIt2 _Dest,
-    _BinOp _Reduce_op, _UnaryOp _Transform_op) noexcept; // terminates
+_FwdIt2 transform_inclusive_scan(_ExPo&& _Exec, _FwdIt1 _First, _FwdIt1 _Last, _FwdIt2 _Dest, _BinOp _Reduce_op,
+    _UnaryOp _Transform_op) noexcept; // terminates
 #endif // _HAS_CXX17
 
 _EXPORT_STD template <class _InIt, class _OutIt, class _BinOp>
@@ -483,9 +482,9 @@ _CONSTEXPR20 _OutIt adjacent_difference(const _InIt _First, const _InIt _Last, _
             _Iter_value_t<_InIt> _Tmp = *_UFirst;
 #if _HAS_CXX20
             *++_UDest = _Func(_Tmp, _STD move(_Val));
-#else // ^^^ _HAS_CXX20 ^^^ // vvv !_HAS_CXX20 vvv
+#else // ^^^ _HAS_CXX20 / !_HAS_CXX20 vvv
             *++_UDest = _Func(_Tmp, _Val);
-#endif // _HAS_CXX20
+#endif // ^^^ !_HAS_CXX20 ^^^
             _Val = _STD move(_Tmp);
         }
 
@@ -505,7 +504,7 @@ _CONSTEXPR20 _OutIt adjacent_difference(const _InIt _First, const _InIt _Last, c
 #if _HAS_CXX17
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, class _BinOp, _Enable_if_execution_policy_t<_ExPo> = 0>
 _FwdIt2 adjacent_difference(
-    _ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, _FwdIt2 _Dest, _BinOp _Diff_op) noexcept; // terminates
+    _ExPo&& _Exec, _FwdIt1 _First, _FwdIt1 _Last, _FwdIt2 _Dest, _BinOp _Diff_op) noexcept; // terminates
 
 _EXPORT_STD template <class _ExPo, class _FwdIt1, class _FwdIt2, _Enable_if_execution_policy_t<_ExPo> = 0>
 _FwdIt2 adjacent_difference(_ExPo&& _Exec, const _FwdIt1 _First, const _FwdIt1 _Last, const _FwdIt2 _Dest) noexcept
@@ -531,10 +530,8 @@ namespace ranges {
     _EXPORT_STD template <class _Out, class _Ty>
     using iota_result = out_value_result<_Out, _Ty>;
 
-    class _Iota_fn : private _Not_quite_object {
+    class _Iota_fn {
     public:
-        using _Not_quite_object::_Not_quite_object;
-
         template <input_or_output_iterator _It, sentinel_for<_It> _Se, weakly_incrementable _Ty>
             requires indirectly_writable<_It, const _Ty&>
         constexpr iota_result<_It, _Ty> operator()(_It _First, _Se _Last, _Ty _Val) const {
@@ -566,7 +563,7 @@ namespace ranges {
         }
     };
 
-    _EXPORT_STD inline constexpr _Iota_fn iota{_Not_quite_object::_Construct_tag{}};
+    _EXPORT_STD inline constexpr _Iota_fn iota;
 } // namespace ranges
 #endif // _HAS_CXX23 && defined(__cpp_lib_concepts)
 
@@ -623,12 +620,11 @@ _NODISCARD constexpr common_type_t<_Mt, _Nt> gcd(const _Mt _Mx, const _Nt _Nx) n
 
             _Nx_magnitude -= _Mx_magnitude;
             if (_Nx_magnitude == 0U) {
-                break;
+                return static_cast<_Common>(_Mx_magnitude << _Common_factors_of_2);
             }
 
             _Nx_trailing_zeroes = static_cast<unsigned long>(_Countr_zero_impl(_Nx_magnitude));
         }
-        return static_cast<_Common>(_Mx_magnitude << _Common_factors_of_2);
     });
 }
 
@@ -649,6 +645,24 @@ _NODISCARD constexpr common_type_t<_Mt, _Nt> lcm(const _Mt _Mx, const _Nt _Nx) n
 #endif // _HAS_CXX17
 
 #if _HAS_CXX20
+template <class _Flt>
+inline constexpr _Flt _Floating_max{};
+template <>
+inline constexpr float _Floating_max<float> = FLT_MAX;
+template <>
+inline constexpr double _Floating_max<double> = DBL_MAX;
+template <>
+inline constexpr long double _Floating_max<long double> = LDBL_MAX;
+
+template <class _Flt>
+inline constexpr _Flt _Floating_min{};
+template <>
+inline constexpr float _Floating_min<float> = FLT_MIN;
+template <>
+inline constexpr double _Floating_min<double> = DBL_MIN;
+template <>
+inline constexpr long double _Floating_min<long double> = LDBL_MIN;
+
 _EXPORT_STD template <class _Ty, enable_if_t<is_arithmetic_v<_Ty> && !is_same_v<remove_cv_t<_Ty>, bool>, int> = 0>
 _NODISCARD constexpr _Ty midpoint(const _Ty _Val1, const _Ty _Val2) noexcept {
     if constexpr (is_floating_point_v<_Ty>) {
@@ -667,7 +681,7 @@ _NODISCARD constexpr _Ty midpoint(const _Ty _Val1, const _Ty _Val2) noexcept {
             }
         }
 
-        constexpr _Ty _High_limit = (numeric_limits<_Ty>::max)() / 2;
+        constexpr _Ty _High_limit = _Floating_max<remove_cv_t<_Ty>> / 2;
         const auto _Val1_a        = _Float_abs(_Val1);
         const auto _Val2_a        = _Float_abs(_Val2);
         if (_Val1_a <= _High_limit && _Val2_a <= _High_limit) {
@@ -691,7 +705,7 @@ _NODISCARD constexpr _Ty midpoint(const _Ty _Val1, const _Ty _Val2) noexcept {
 
         // In the default rounding mode this less than one ULP difference will always be rounded away, so under
         // /fp:fast we could avoid these tests if we had some means of detecting it in the caller.
-        constexpr _Ty _Low_limit = (numeric_limits<_Ty>::min)() * 2;
+        constexpr _Ty _Low_limit = _Floating_min<remove_cv_t<_Ty>> * 2;
         if (_Val1_a < _Low_limit) {
             return _Val1 + _Val2 / 2;
         }

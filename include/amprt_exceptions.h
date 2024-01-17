@@ -72,7 +72,7 @@ public:
     /// <summary>
     ///     Destruct a runtime_exception exception object instance
     /// </summary>
-    _AMPIMP virtual ~runtime_exception() throw();
+    _AMPIMP virtual ~runtime_exception() noexcept;
 
     /// <summary>
     ///     Get the error code that caused this exception

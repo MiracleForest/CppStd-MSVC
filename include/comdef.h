@@ -255,7 +255,7 @@ public:
 
     // Destructor
     //
-    virtual ~_com_error() throw();
+    virtual ~_com_error() noexcept;
 
     // Assignment operator
     //
@@ -312,7 +312,7 @@ inline _com_error::_com_error(const _com_error& that) throw()
     }
 }
 
-inline _com_error::~_com_error() throw()
+inline _com_error::~_com_error() noexcept
 {
     if (m_perrinfo != NULL) {
         m_perrinfo->Release();

@@ -13,10 +13,12 @@
 * =-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 ****/
 
-#pragma once
-
 #ifndef _PPLWIN_H
 #define _PPLWIN_H
+
+#include <yvals_core.h>
+
+#if _STL_COMPILER_PREPROCESSOR
 
 #include <pplinterface.h>
 #include <condition_variable>
@@ -25,8 +27,10 @@
 #include <memory>
 #include <ppltaskscheduler.h>
 
-#pragma pack(push,_CRT_PACKING)
-#pragma warning(push,3)
+#pragma pack(push, _CRT_PACKING)
+#pragma warning(push, _STL_WARNING_LEVEL)
+#pragma warning(disable : _STL_DISABLED_WARNINGS)
+_STL_DISABLE_CLANG_WARNINGS
 #pragma push_macro("new")
 #undef new
 
@@ -37,7 +41,7 @@ namespace Concurrency
 namespace details
 {
 
-class _DefaultPPLTaskScheduler : public scheduler_interface
+class _DefaultPPLTaskScheduler final : public scheduler_interface
 {
 public:
 
@@ -59,9 +63,12 @@ public:
             _Release_chore(&_M_Chore);
         }
 
+#pragma warning(push)
+#pragma warning(disable : 4355) // 'this': used in base member initializer list (/Wall)
         _PPLTaskChore(TaskProc_t _Proc, void *_Param) : _M_Chore{&_Callback, this}, _M_proc(_Proc), _M_param(_Param)
         {
         }
+#pragma warning(pop)
 
         void _Schedule()
         {
@@ -293,6 +300,10 @@ namespace concurrency = ::Concurrency;
 } // extern "C++"
 
 #pragma pop_macro("new")
+_STL_RESTORE_CLANG_WARNINGS
 #pragma warning(pop)
 #pragma pack(pop)
+
+#endif // _STL_COMPILER_PREPROCESSOR
+
 #endif // _PPLWIN_H

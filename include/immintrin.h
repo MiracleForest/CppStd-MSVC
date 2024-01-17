@@ -1,5 +1,5 @@
 /*
- *  Copyright (C) 1985-2020 Intel Corporation.
+ *  Copyright (C) 1985-2023 Intel Corporation.
  *
  *  SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
  */
@@ -11,11 +11,11 @@
 
 #pragma once
 
-#if !defined(_M_IX86) && !defined(_M_X64)
-#error This header is specific to X86 and X64 targets
+#if !defined(_M_IX86) && !defined(_M_X64) && !(defined(_M_ARM64) && defined(USE_SOFT_INTRINSICS))
+#error This header is specific to X86, X64, ARM64, and ARM64EC targets
 #endif
 
-#if defined(_M_ARM64EC) && !defined(__INTRIN_H_)
+#if (defined(_M_ARM64) || defined(_M_ARM64EC)) && !defined(__INTRIN_H_)
 #error this header should only be included through <intrin.h>
 #endif
 
@@ -1402,6 +1402,17 @@ extern __m256d __cdecl _mm256_fmaddsub_pd(__m256d, __m256d, __m256d);
 extern __m256  __cdecl _mm256_fmsubadd_ps(__m256, __m256, __m256);
 extern __m256d __cdecl _mm256_fmsubadd_pd(__m256d, __m256d, __m256d);
 
+/*
+ * Scalar FP intrinsics (with double/float arguments) 
+ */
+extern float  __cdecl __fmadd_ss(float, float, float);
+extern double __cdecl __fmadd_sd(double, double, double);
+extern float  __cdecl __fmsub_ss(float, float, float);
+extern double __cdecl __fmsub_sd(double, double, double);
+extern float  __cdecl __fnmadd_ss(float, float, float);
+extern double __cdecl __fnmadd_sd(double, double, double);
+extern float  __cdecl __fnmsub_ss(float, float, float);
+extern double __cdecl __fnmsub_sd(double, double, double);
 
 /*
  * Integer 256-bit vector comparison operations.
@@ -2465,6 +2476,108 @@ extern double _castu64_f64 (unsigned __int64);
 #endif  /* defined __cplusplus */
 
 #include <zmmintrin.h>
+
+#ifdef __cplusplus
+extern "C" {
+#endif  /* __cplusplus */
+
+// No AVX-512 support needed, but require zmmintrin.h definitions for bfloat16 types.
+
+/* Intel(R) AVX-IFMA */
+extern __m128i __cdecl _mm_madd52hi_avx_epu64(__m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_madd52hi_avx_epu64(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_madd52lo_avx_epu64(__m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_madd52lo_avx_epu64(__m256i, __m256i, __m256i);
+
+/* Intel(R) AVX-NE-CONVERT */
+extern __m128 __cdecl _mm_bcstnebf16_ps(const __bfloat16 *);
+extern __m256 __cdecl _mm256_bcstnebf16_ps(const __bfloat16 *);
+extern __m128 __cdecl _mm_bcstnesh_ps(const void *);
+extern __m256 __cdecl _mm256_bcstnesh_ps(const void *);
+extern __m128 __cdecl _mm_cvtneebf16_ps(const __m128bh *);
+extern __m256 __cdecl _mm256_cvtneebf16_ps(const __m256bh *);
+extern __m128 __cdecl _mm_cvtneeph_ps(const __m128h *);
+extern __m256 __cdecl _mm256_cvtneeph_ps(const __m256h *);
+extern __m128 __cdecl _mm_cvtneobf16_ps(const __m128bh *);
+extern __m256 __cdecl _mm256_cvtneobf16_ps(const __m256bh *);
+extern __m128 __cdecl _mm_cvtneoph_ps(const __m128h *);
+extern __m256 __cdecl _mm256_cvtneoph_ps(const __m256h *);
+extern __m128bh __cdecl _mm_cvtneps_avx_pbh(__m128);
+extern __m128bh __cdecl _mm256_cvtneps_avx_pbh(__m256);
+
+/* Intel(R) AVX-VNNI-INT8 */
+extern __m128i __cdecl _mm_dpbssd_epi32(__m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbssd_epi32(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_dpbssds_epi32( __m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbssds_epi32(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_dpbsud_epi32(__m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbsud_epi32(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_dpbsuds_epi32( __m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbsuds_epi32(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_dpbuud_epi32(__m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbuud_epi32(__m256i, __m256i, __m256i);
+extern __m128i __cdecl _mm_dpbuuds_epi32( __m128i, __m128i, __m128i);
+extern __m256i __cdecl _mm256_dpbuuds_epi32(__m256i, __m256i, __m256i);
+
+/* RAO-INT */
+extern void __cdecl _aadd_i32(int*, int);
+extern void __cdecl _aand_i32(int*, int);
+extern void __cdecl _aor_i32(int*, int);
+extern void __cdecl _axor_i32(int*, int);
+#if defined (_M_X64)
+extern void __cdecl _aadd_i64(__int64*, __int64);
+extern void __cdecl _aand_i64(__int64*, __int64);
+extern void __cdecl _aor_i64(__int64*, __int64);
+extern void __cdecl _axor_i64(__int64*, __int64);
+#endif  /* defined (_M_X64) */
+
+/*
+ * Scalar FP intrinsics (with double/float arguments)
+ */
+extern float  __cdecl __rsqrt14_ss(float);
+extern double __cdecl __rsqrt14_sd(double);
+extern float  __cdecl __rsqrt_ss(float);
+extern float  __cdecl __sqrt_ss(float);
+extern double __cdecl __sqrt_sd(double);
+extern float  __cdecl __max_ss(float, float);
+extern double __cdecl __max_sd(double, double);
+extern float  __cdecl __min_ss(float, float);
+extern double __cdecl __min_sd(double, double);
+
+#if defined (_M_X64)
+
+/* Intel(R) CMPCCXADD */
+typedef enum {
+  _CMPCCX_O,   /* Overflow.  */
+  _CMPCCX_NO,  /* No overflow.  */
+  _CMPCCX_B,   /* Below.  */
+  _CMPCCX_NB,  /* Not below.  */
+  _CMPCCX_Z,   /* Zero.  */
+  _CMPCCX_NZ,  /* Not zero.  */
+  _CMPCCX_BE,  /* Below or equal.  */
+  _CMPCCX_NBE, /* Neither below nor equal.  */
+  _CMPCCX_S,   /* Sign.  */
+  _CMPCCX_NS,  /* No sign.  */
+  _CMPCCX_P,   /* Parity.  */
+  _CMPCCX_NP,  /* No parity.  */
+  _CMPCCX_L,   /* Less.  */
+  _CMPCCX_NL,  /* Not less.  */
+  _CMPCCX_LE,  /* Less or equal.  */
+  _CMPCCX_NLE, /* Neither less nor equal.  */
+} _CMPCCX_ENUM;
+//
+extern int __cdecl _cmpccxadd_epi32(void *, int, int, const int);
+extern __int64 __cdecl _cmpccxadd_epi64(void *, __int64, __int64, const int);
+
+#endif  /* defined (_M_X64) */
+
+// scalar functions with scalar arguments and return values
+extern double __round_sd(double, int);
+extern float __round_ss(float, int);
+
+#if defined __cplusplus
+}; /* End "C" */
+#endif  /* defined __cplusplus */
 
 #endif  /* defined (_M_CEE_PURE) */
 #endif  /* __midl */

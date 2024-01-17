@@ -3,7 +3,6 @@
 // Copyright (c) Microsoft Corporation.
 // SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
 
-#pragma once
 #ifndef _SSTREAM_
 #define _SSTREAM_
 #include <yvals_core.h>
@@ -67,21 +66,21 @@ public:
         const basic_string<_Elem, _Traits, _Alloc2>& _Str, ios_base::openmode _Mode = ios_base::in | ios_base::out)
         : basic_stringbuf(_Str, _Mode, _Alloc{}) {}
 
-    basic_stringbuf(basic_stringbuf&& _Right, const _Alloc& _Al_) : _Al(_Al_) {
+    basic_stringbuf(basic_stringbuf&& _Right, const _Alloc& _Al_) : _Mystate(0), _Al(_Al_) {
         _Assign_rv(_STD move(_Right));
     }
 #endif // _HAS_CXX20
 
-    basic_stringbuf(basic_stringbuf&& _Right) {
+    basic_stringbuf(basic_stringbuf&& _Right) : _Mystate(0) {
         _Assign_rv(_STD move(_Right));
     }
 
-    basic_stringbuf& operator=(basic_stringbuf&& _Right) {
+    basic_stringbuf& operator=(basic_stringbuf&& _Right) noexcept /* strengthened */ {
         _Assign_rv(_STD move(_Right));
         return *this;
     }
 
-    void _Assign_rv(basic_stringbuf&& _Right) {
+    void _Assign_rv(basic_stringbuf&& _Right) noexcept {
         if (this != _STD addressof(_Right)) {
             _Tidy();
             this->swap(_Right);
@@ -151,7 +150,7 @@ public:
     _NODISCARD _Mystr str() const&
 #else
     _NODISCARD _Mystr str() const
-#endif // _HAS_CXX20
+#endif
     {
         _Mystr _Result(_Al);
         const auto _View = _Get_buffer_view();
@@ -261,7 +260,7 @@ protected:
             return _Traits::eof();
         }
 
-        const auto _Newptr = _Unfancy(_Al.allocate(_Newsize));
+        const auto _Newptr = _Unfancy(_Allocate_at_least_helper(_Al, _Newsize));
         _Traits::copy(_Newptr, _Oldptr, _Oldsize);
 
         const auto _New_pnext = _Newptr + _Oldsize;
@@ -269,7 +268,7 @@ protected:
 
         _Mysb::setp(_Newptr, _New_pnext, _Newptr + _Newsize);
         if (_Mystate & _Noread) { // maintain eback() == allocated pointer invariant
-            _Mysb::setg(_Newptr, nullptr, _Newptr);
+            _Mysb::setg(_Newptr, _Newptr, _Newptr);
         } else { // if readable, set the get area to initialized region
             _Mysb::setg(_Newptr, _Newptr + (_Mysb::gptr() - _Oldptr), _Seekhigh);
         }
@@ -328,6 +327,12 @@ protected:
 
     pos_type seekoff(
         off_type _Off, ios_base::seekdir _Way, ios_base::openmode _Mode = ios_base::in | ios_base::out) override {
+        const bool _Need_read_but_cannot  = (_Mode & ios_base::in) != 0 && (_Mystate & _Noread) != 0;
+        const bool _Need_write_but_cannot = (_Mode & ios_base::out) != 0 && (_Mystate & _Constant) != 0;
+        if (_Need_read_but_cannot || _Need_write_but_cannot) {
+            return pos_type{off_type{-1}};
+        }
+
         // change position by _Off, according to _Way, _Mode
         const auto _Gptr_old = _Mysb::gptr();
         const auto _Pptr_old = (_Mystate & _Constant) ? nullptr : _Mysb::pptr();
@@ -348,8 +353,7 @@ protected:
         case ios_base::cur:
             {
                 constexpr auto _Both = ios_base::in | ios_base::out;
-                if ((_Mode & _Both)
-                    != _Both) { // prohibited by N4727 [stringbuf.virtuals] Table 107 "seekoff positioning"
+                if ((_Mode & _Both) != _Both) { // prohibited by N4950 [tab:stringbuf.seekoff.pos]
                     if (_Mode & ios_base::in) {
                         if (_Gptr_old || !_Seeklow) {
                             _Newoff = _Gptr_old - _Seeklow;
@@ -364,16 +368,16 @@ protected:
 
             _FALLTHROUGH;
         default:
-            return pos_type(off_type(-1));
+            return pos_type{off_type{-1}};
         }
 
         if (static_cast<unsigned long long>(_Off) + _Newoff > static_cast<unsigned long long>(_Seekdist)) {
-            return pos_type(off_type(-1));
+            return pos_type{off_type{-1}};
         }
 
         _Off += _Newoff;
         if (_Off != 0 && (((_Mode & ios_base::in) && !_Gptr_old) || ((_Mode & ios_base::out) && !_Pptr_old))) {
-            return pos_type(off_type(-1));
+            return pos_type{off_type{-1}};
         }
 
         const auto _Newptr = _Seeklow + _Off; // may perform nullptr + 0
@@ -385,10 +389,16 @@ protected:
             _Mysb::setp(_Seeklow, _Newptr, _Mysb::epptr());
         }
 
-        return pos_type(_Off);
+        return pos_type{_Off};
     }
 
     pos_type seekpos(pos_type _Pos, ios_base::openmode _Mode = ios_base::in | ios_base::out) override {
+        const bool _Need_read_but_cannot  = (_Mode & ios_base::in) != 0 && (_Mystate & _Noread) != 0;
+        const bool _Need_write_but_cannot = (_Mode & ios_base::out) != 0 && (_Mystate & _Constant) != 0;
+        if (_Need_read_but_cannot || _Need_write_but_cannot) {
+            return pos_type{off_type{-1}};
+        }
+
         // change position to _Pos, according to _Mode
         const auto _Off      = static_cast<streamoff>(_Pos);
         const auto _Gptr_old = _Mysb::gptr();
@@ -400,11 +410,11 @@ protected:
         const auto _Seeklow  = _Mysb::eback();
         const auto _Seekdist = _Seekhigh - _Seeklow;
         if (static_cast<unsigned long long>(_Off) > static_cast<unsigned long long>(_Seekdist)) {
-            return pos_type(off_type(-1));
+            return pos_type{off_type{-1}};
         }
 
         if (_Off != 0 && (((_Mode & ios_base::in) && !_Gptr_old) || ((_Mode & ios_base::out) && !_Pptr_old))) {
-            return pos_type(off_type(-1));
+            return pos_type{off_type{-1}};
         }
 
         const auto _Newptr = _Seeklow + _Off; // may perform nullptr + 0
@@ -416,10 +426,10 @@ protected:
             _Mysb::setp(_Seeklow, _Newptr, _Mysb::epptr());
         }
 
-        return pos_type(_Off);
+        return pos_type{_Off};
     }
 
-    void _Init(const _Elem* _Ptr, _Mysize_type _Count, int _State) {
+    void _Init(const _Elem* _Ptr, const _Mysize_type _Count, int _State) {
         // initialize buffer to [_Ptr, _Ptr + _Count), set state
         _State &= ~_From_rvalue;
 
@@ -429,9 +439,10 @@ protected:
 
         if (_Count != 0 && (_State & (_Noread | _Constant)) != (_Noread | _Constant)) {
             // finite buffer that can be read or written, set it up
-            const auto _Pnew = _Unfancy(_Al.allocate(_Count));
+            _Mysize_type _Newsize = _Count;
+            const auto _Pnew      = _Unfancy(_Allocate_at_least_helper(_Al, _Newsize));
             _Traits::copy(_Pnew, _Ptr, _Count);
-            _Seekhigh = _Pnew + _Count;
+            _Seekhigh = _Pnew + _Newsize;
 
             if (!(_State & _Noread)) {
                 _Mysb::setg(_Pnew, _Pnew, _Seekhigh); // setup read buffer
@@ -441,7 +452,7 @@ protected:
                 _Mysb::setp(_Pnew, (_State & (_Atend | _Append)) ? _Seekhigh : _Pnew, _Seekhigh);
 
                 if (_State & _Noread) { // maintain "_Allocated == eback() points to buffer base" invariant
-                    _Mysb::setg(_Pnew, nullptr, _Pnew);
+                    _Mysb::setg(_Pnew, _Pnew, _Pnew);
                 }
             }
 
@@ -462,15 +473,15 @@ protected:
         }
 
         // finite buffer that can be read or written, set it up
-        auto [_Ptr, _Size, _Res] = _Str._Release_to_buffer(_Al);
-        _Elem* const _Pnew       = _Unfancy(_Ptr);
-        _Seekhigh                = _Pnew + _Size;
-        auto _Next               = (_State & (_Atend | _Append)) ? _Seekhigh : _Pnew;
-        auto _End_buffer         = _Pnew + _Res;
+        auto [_Ptr, _Size, _Actual_allocation_size] = _Str._Release_to_buffer(_Al);
+        _Elem* const _Pnew                          = _Unfancy(_Ptr);
+        _Seekhigh                                   = _Pnew + _Size;
+        auto _Next                                  = (_State & (_Atend | _Append)) ? _Seekhigh : _Pnew;
+        auto _End_buffer                            = _Pnew + _Actual_allocation_size;
 
         _Mysb::setp(_Pnew, _Next, _End_buffer);
         if (_State & _Noread) { // maintain "_Allocated == eback() points to buffer base" invariant
-            _Mysb::setg(_Pnew, nullptr, _Pnew);
+            _Mysb::setg(_Pnew, _Pnew, _Pnew);
         } else {
             _Mysb::setg(_Pnew, _Pnew, _Seekhigh);
         }
@@ -499,7 +510,7 @@ private:
         _MINSIZE = 32
     };
 
-    static int _Getstate(ios_base::openmode _Mode) { // convert open mode to stream state bits
+    static int _Getstate(ios_base::openmode _Mode) noexcept { // convert open mode to stream state bits
         int _State = 0;
         if (!(_Mode & ios_base::in)) {
             _State |= _Noread;
@@ -577,19 +588,19 @@ public:
         _Assign_rv(_STD move(_Right));
     }
 
-    basic_istringstream& operator=(basic_istringstream&& _Right) {
+    basic_istringstream& operator=(basic_istringstream&& _Right) noexcept /* strengthened */ {
         _Assign_rv(_STD move(_Right));
         return *this;
     }
 
-    void _Assign_rv(basic_istringstream&& _Right) {
+    void _Assign_rv(basic_istringstream&& _Right) noexcept {
         if (this != _STD addressof(_Right)) {
-            _Stringbuffer.str(_Mystr());
-            this->swap(_Right);
+            _Mybase::swap(_Right);
+            _Stringbuffer._Assign_rv(_STD move(_Right._Stringbuffer));
         }
     }
 
-    void swap(basic_istringstream& _Right) {
+    void swap(basic_istringstream& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Mybase::swap(_Right);
             _Stringbuffer.swap(_Right._Stringbuffer);
@@ -601,7 +612,7 @@ public:
 
     ~basic_istringstream() noexcept override {}
 
-    _NODISCARD _Mysb* rdbuf() const {
+    _NODISCARD _Mysb* rdbuf() const noexcept /* strengthened */ {
         return const_cast<_Mysb*>(_STD addressof(_Stringbuffer));
     }
 
@@ -609,7 +620,7 @@ public:
     _NODISCARD _Mystr str() const&
 #else
     _NODISCARD _Mystr str() const
-#endif // _HAS_CXX20
+#endif
     {
         return _Stringbuffer.str();
     }
@@ -647,7 +658,8 @@ private:
 };
 
 _EXPORT_STD template <class _Elem, class _Traits, class _Alloc>
-void swap(basic_istringstream<_Elem, _Traits, _Alloc>& _Left, basic_istringstream<_Elem, _Traits, _Alloc>& _Right) {
+void swap(basic_istringstream<_Elem, _Traits, _Alloc>& _Left,
+    basic_istringstream<_Elem, _Traits, _Alloc>& _Right) noexcept /* strengthened */ {
     _Left.swap(_Right);
 }
 
@@ -696,19 +708,19 @@ public:
         _Assign_rv(_STD move(_Right));
     }
 
-    basic_ostringstream& operator=(basic_ostringstream&& _Right) {
+    basic_ostringstream& operator=(basic_ostringstream&& _Right) noexcept /* strengthened */ {
         _Assign_rv(_STD move(_Right));
         return *this;
     }
 
-    void _Assign_rv(basic_ostringstream&& _Right) {
+    void _Assign_rv(basic_ostringstream&& _Right) noexcept {
         if (this != _STD addressof(_Right)) {
-            _Stringbuffer.str(_Mystr());
-            this->swap(_Right);
+            _Mybase::swap(_Right);
+            _Stringbuffer._Assign_rv(_STD move(_Right._Stringbuffer));
         }
     }
 
-    void swap(basic_ostringstream& _Right) {
+    void swap(basic_ostringstream& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Mybase::swap(_Right);
             _Stringbuffer.swap(_Right._Stringbuffer);
@@ -720,7 +732,7 @@ public:
 
     ~basic_ostringstream() noexcept override {}
 
-    _NODISCARD _Mysb* rdbuf() const {
+    _NODISCARD _Mysb* rdbuf() const noexcept /* strengthened */ {
         return const_cast<_Mysb*>(_STD addressof(_Stringbuffer));
     }
 
@@ -728,7 +740,7 @@ public:
     _NODISCARD _Mystr str() const&
 #else
     _NODISCARD _Mystr str() const
-#endif // _HAS_CXX20
+#endif
     {
         return _Stringbuffer.str();
     }
@@ -766,7 +778,8 @@ private:
 };
 
 _EXPORT_STD template <class _Elem, class _Traits, class _Alloc>
-void swap(basic_ostringstream<_Elem, _Traits, _Alloc>& _Left, basic_ostringstream<_Elem, _Traits, _Alloc>& _Right) {
+void swap(basic_ostringstream<_Elem, _Traits, _Alloc>& _Left,
+    basic_ostringstream<_Elem, _Traits, _Alloc>& _Right) noexcept /* strengthened */ {
     _Left.swap(_Right);
 }
 
@@ -821,19 +834,19 @@ public:
         _Assign_rv(_STD move(_Right));
     }
 
-    basic_stringstream& operator=(basic_stringstream&& _Right) {
+    basic_stringstream& operator=(basic_stringstream&& _Right) noexcept /* strengthened */ {
         _Assign_rv(_STD move(_Right));
         return *this;
     }
 
-    void _Assign_rv(basic_stringstream&& _Right) {
+    void _Assign_rv(basic_stringstream&& _Right) noexcept {
         if (this != _STD addressof(_Right)) {
-            _Stringbuffer.str(_Mystr());
-            this->swap(_Right);
+            _Mybase::swap(_Right);
+            _Stringbuffer._Assign_rv(_STD move(_Right._Stringbuffer));
         }
     }
 
-    void swap(basic_stringstream& _Right) {
+    void swap(basic_stringstream& _Right) noexcept /* strengthened */ {
         if (this != _STD addressof(_Right)) {
             _Mybase::swap(_Right);
             _Stringbuffer.swap(_Right._Stringbuffer);
@@ -845,7 +858,7 @@ public:
 
     ~basic_stringstream() noexcept override {}
 
-    _NODISCARD _Mysb* rdbuf() const {
+    _NODISCARD _Mysb* rdbuf() const noexcept /* strengthened */ {
         return const_cast<_Mysb*>(_STD addressof(_Stringbuffer));
     }
 
@@ -853,7 +866,7 @@ public:
     _NODISCARD _Mystr str() const&
 #else
     _NODISCARD _Mystr str() const
-#endif // _HAS_CXX20
+#endif
     {
         return _Stringbuffer.str();
     }
@@ -891,7 +904,8 @@ private:
 };
 
 _EXPORT_STD template <class _Elem, class _Traits, class _Alloc>
-void swap(basic_stringstream<_Elem, _Traits, _Alloc>& _Left, basic_stringstream<_Elem, _Traits, _Alloc>& _Right) {
+void swap(basic_stringstream<_Elem, _Traits, _Alloc>& _Left,
+    basic_stringstream<_Elem, _Traits, _Alloc>& _Right) noexcept /* strengthened */ {
     _Left.swap(_Right);
 }
 _STD_END
